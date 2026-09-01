@@ -121,7 +121,7 @@ declare global {
 const CONTENT_LISTS = CRITICAL_ITEMS.length / 2;
 const TOTAL_LISTS = CONTENT_LISTS * 2;
 const SCALE = [1, 2, 3, 4, 5, 6, 7];
-const STIMULUS_VERSION = '2026-09-01-r3';
+const STIMULUS_VERSION = '2026-09-01-r4';
 
 const EMPTY_DEMOGRAPHICS: Demographics = {
   ageBand: '',

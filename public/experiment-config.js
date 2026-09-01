@@ -16,8 +16,7 @@ window.EXPERIMENT_CONFIG = {
   approvalDate: "18 Haziran 2026",
   expirationDate: "31 Mayıs 2027",
   rafflePrize: "1.000 TL değerindeki Amazon hediye kartı",
-  // Keep 24 until the final per-participant filler count is confirmed.
-  fillerCount: 24,
+  fillerCount: 16,
   // This site key is public by design. Never place the secret API key here.
   proofOfHumanSiteKey: ""
 };
