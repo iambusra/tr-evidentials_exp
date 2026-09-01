@@ -30,7 +30,7 @@ Edit `public/experiment-config.js`:
 - Set `raffleEndpoint` to the HTTPS endpoint that stores raffle emails separately.
 - Set `prolificCompletionUrl` to the Prolific completion URL.
 - Set `proofOfHumanSiteKey` to the public Proof of Human site key. Keep the secret API key on the server.
-- Set `fillerCount` after the final per-participant filler count is decided.
+- `fillerCount` is set to 16, giving 34 main screens after the two attention checks are included.
 - Change `studyId` when creating a new study version.
 
 The endpoint URL is public because it runs in participants' browsers. Never put an API key, database password, service-role key, or other secret in this repository.
