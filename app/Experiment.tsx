@@ -24,6 +24,8 @@ type Stage =
   | 'error'
   | 'withdrawn';
 
+type RecruitmentSource = 'prolific' | 'network';
+
 type CriticalTrial = {
   type: 'critical';
   trialId: string;
@@ -93,23 +95,33 @@ type Demographics = {
 
 type ExperimentConfig = {
   endpoint?: string;
+  raffleEndpoint?: string;
   completionUrl?: string;
+  prolificCompletionUrl?: string;
   studyId?: string;
   researcherName?: string;
   institution?: string;
   contactEmail?: string;
   ethicsReference?: string;
+  protocolTitle?: string;
+  approvalDate?: string;
+  expirationDate?: string;
+  rafflePrize?: string;
+  fillerCount?: number;
+  proofOfHumanSiteKey?: string;
 };
 
 declare global {
   interface Window {
     EXPERIMENT_CONFIG?: ExperimentConfig;
+    getRoundtableSessionId?: () => string | undefined;
   }
 }
 
-const TOTAL_LISTS = CONDITION_KEYS.length * 2;
+const CONTENT_LISTS = CRITICAL_ITEMS.length / 2;
+const TOTAL_LISTS = CONTENT_LISTS * 2;
 const SCALE = [1, 2, 3, 4, 5, 6, 7];
-const STIMULUS_VERSION = '2026-08-25-r2';
+const STIMULUS_VERSION = '2026-09-01-r3';
 
 const EMPTY_DEMOGRAPHICS: Demographics = {
   ageBand: '',
@@ -224,24 +236,20 @@ function hasLongRun(trials: Array<CriticalTrial | FillerTrial>, maxRun = 4) {
   return false;
 }
 
-export function buildTrials(listIndex: number, seed: string): Trial[] {
-  const random = seededRandom(seed);
-  const critical: CriticalTrial[] = CRITICAL_ITEMS.map((item, itemIndex) => {
-    const condition = CONDITION_KEYS[(itemIndex + (listIndex % 8)) % 8];
-    const marker: Marker =
-      (itemIndex + Math.floor(listIndex / 8)) % 2 === 0 ? 'di' : 'mis';
-    return {
-      type: 'critical',
-      trialId: `${item.id}-${condition}-${marker}`,
-      itemId: item.id,
-      context: item.contexts[condition],
-      target: item.target[marker],
-      condition,
-      marker,
-    };
-  });
+function selectFillers(count: number, random: () => number): FillerTrial[] {
+  const safeCount = Math.max(0, Math.min(FILLERS.length, Math.floor(count)));
+  const goodCount = Math.ceil(safeCount / 2);
+  const badCount = Math.floor(safeCount / 2);
+  const good = shuffle(
+    FILLERS.filter((item) => item.intended === 'good'),
+    random,
+  ).slice(0, goodCount);
+  const bad = shuffle(
+    FILLERS.filter((item) => item.intended === 'bad'),
+    random,
+  ).slice(0, badCount);
 
-  const fillers: FillerTrial[] = FILLERS.map((item) => ({
+  return shuffle([...good, ...bad], random).map((item) => ({
     type: 'filler',
     trialId: item.id,
     itemId: item.id,
@@ -249,6 +257,35 @@ export function buildTrials(listIndex: number, seed: string): Trial[] {
     target: item.target,
     intended: item.intended,
   }));
+}
+
+export function buildTrials(
+  listIndex: number,
+  seed: string,
+  fillerCount: number = FILLERS.length,
+): Trial[] {
+  const random = seededRandom(seed);
+  const contentListIndex = listIndex % CONTENT_LISTS;
+  const marker: Marker = listIndex < CONTENT_LISTS ? 'di' : 'mis';
+  const critical: CriticalTrial[] = CONDITION_KEYS.flatMap(
+    (condition, conditionIndex) => {
+      const itemRow = (contentListIndex + conditionIndex) % CONTENT_LISTS;
+      return [itemRow, itemRow + CONTENT_LISTS].map((itemIndex) => {
+        const item = CRITICAL_ITEMS[itemIndex];
+        return {
+          type: 'critical' as const,
+          trialId: `${item.id}-${condition}-${marker}`,
+          itemId: item.id,
+          context: item.contexts[condition],
+          target: item.target[marker],
+          condition,
+          marker,
+        };
+      });
+    },
+  );
+
+  const fillers = selectFillers(fillerCount, random);
 
   let mixed: Array<CriticalTrial | FillerTrial> = [...critical, ...fillers];
   for (let attempt = 0; attempt < 200; attempt += 1) {
@@ -266,8 +303,13 @@ export function buildTrials(listIndex: number, seed: string): Trial[] {
   }));
 
   const result: Trial[] = [...mixed];
-  result.splice(20, 0, attentionTrials[0]);
-  result.splice(43, 0, attentionTrials[1]);
+  const firstAttentionIndex = Math.max(4, Math.floor(result.length / 3));
+  result.splice(firstAttentionIndex, 0, attentionTrials[0]);
+  const secondAttentionIndex = Math.max(
+    firstAttentionIndex + 5,
+    Math.floor((result.length * 2) / 3),
+  );
+  result.splice(secondAttentionIndex, 0, attentionTrials[1]);
   return result;
 }
 
@@ -280,12 +322,16 @@ function readLaunchData() {
       prolificSessionId: null,
       sessionId: 'pending',
       listIndex: 0,
+      recruitmentSource: 'network' as RecruitmentSource,
     };
   }
 
   const params = new URLSearchParams(window.location.search);
   const prolificId = params.get('PROLIFIC_PID');
   const suppliedId = params.get('participant_id');
+  const requestedSource = params.get('source');
+  const recruitmentSource: RecruitmentSource =
+    requestedSource === 'prolific' || prolificId ? 'prolific' : 'network';
   const participantId = prolificId || suppliedId || uuid('P');
   const listParam = Number(params.get('list'));
   const listIndex =
@@ -300,6 +346,7 @@ function readLaunchData() {
     prolificSessionId: params.get('SESSION_ID'),
     sessionId: uuid('S'),
     listIndex,
+    recruitmentSource,
   };
 }
 
@@ -403,6 +450,151 @@ function ScalePreview() {
   );
 }
 
+function ConsentContent({
+  source,
+  config,
+}: {
+  source: RecruitmentSource;
+  config: ExperimentConfig;
+}) {
+  const protocolTitle =
+    config.protocolTitle ||
+    'Communication and social cognition in natural audiovisual contexts';
+
+  return (
+    <div className="consent-copy">
+      <div className="consent-metadata">
+        <p>
+          <span>Protokol sorumlusu:</span>{' '}
+          {config.researcherName || 'Robert Hawkins'}
+        </p>
+        <p>
+          <span>Protokol başlığı:</span> {protocolTitle}
+        </p>
+        <p>
+          <span>IRB:</span> {config.ethicsReference || '77226'}
+        </p>
+        <p>
+          <span>Onay tarihi:</span> {config.approvalDate || '18 Haziran 2026'}
+        </p>
+        <p>
+          <span>Geçerlilik bitiş tarihi:</span>{' '}
+          {config.expirationDate || '31 Mayıs 2027'}
+        </p>
+      </div>
+
+      <section className="consent-section">
+        <h2>Açıklama</h2>
+        <p>
+          Türkçede anlamın bağlam içinde nasıl yorumlandığını inceleyen bir
+          araştırma çalışmasına katılmaya davet ediliyorsunuz. Araştırmanın
+          amacı, Türkçe konuşurların cümleleri farklı bağlamlarda ne kadar doğal
+          ve uygun bulduklarını anlamaktır. Katılmayı seçerseniz kısa bağlamlar
+          ve bunları izleyen cümleler okuyacak, her cümlenin bağlama uygunluğunu
+          1 ile 7 arasında değerlendirecek ve dil geçmişiniz ile bazı genel
+          demografik bilgilerinize ilişkin soruları yanıtlayacaksınız.
+        </p>
+      </section>
+
+      <section className="consent-section">
+        <h2>Süre</h2>
+        <p>
+          Çalışma yaklaşık 15 dakika sürecektir. Cep telefonu veya tabletle
+          katılabilirsiniz. Daha rahat bir deneyim için masaüstü ya da dizüstü
+          bilgisayar kullanmanızı öneririz. İstediğiniz zaman çalışmadan
+          ayrılabilirsiniz.
+        </p>
+      </section>
+
+      <section className="consent-section">
+        <h2>Riskler ve yararlar</h2>
+        <p>
+          Bu çalışma, günlük internet kullanımının ötesinde önemli bir risk
+          taşımaz. Bazı cümleleri değerlendirmek yorucu veya tekrarlı gelebilir.
+          Yanıtlarınız, gizlilik ihlali riskini en aza indirmek için Stanford
+          Üniversitesi standartlarına uygun özel bir Google Drive alanında
+          güvenli olarak saklanacaktır.
+        </p>
+        <p>
+          Veri kalitesini korumak için Proof of Human adlı üçüncü taraf araç;
+          imleç hareketleri, tuş ritmi, kaydırma, sayfa odağı ile cihaz ve ağ
+          bilgilerini işleyerek otomatik veya şüpheli oturumlar için bir risk
+          puanı üretecektir. Bu çalışma kapsamında yalnızca izleme amacıyla
+          kullanılacak ve tek başına katılımcıları engellemek ya da yanıtları
+          dışlamak için kullanılmayacaktır.
+        </p>
+        <p>
+          Bu çalışma, Türkçede anlamın bağlam içinde nasıl yorumlandığına ilişkin
+          bilimsel bilgimizi geliştirebilir. Bu çalışmadan herhangi bir yarar
+          sağlayacağınızı garanti edemeyiz veya vaat edemeyiz.
+        </p>
+      </section>
+
+      <section className="consent-section">
+        <h2>{source === 'prolific' ? 'Ödeme' : 'Çekiliş'}</h2>
+        {source === 'prolific' ? (
+          <p>
+            Prolific üzerinden katılıyorsanız, Prolific&apos;te ilan edilen
+            tutarda ödeme alacaksınız. Çalışmayı tamamlamazsanız, harcadığınız
+            süreye orantılı ödeme alacaksınız. Prolific kimliğiniz,
+            katılımınızı eşleştirmek ve ödemenizi yönetmek amacıyla
+            kaydedilebilir.
+          </p>
+        ) : (
+          <p>
+            Çalışmayı tamamladıktan sonra e-posta adresinizi paylaşarak bir
+            katılımcıya verilecek{' '}
+            {config.rafflePrize || '1.000 TL değerindeki Amazon hediye kartı'}{' '}
+            çekilişine katılabilirsiniz. E-posta adresinizi paylaşmak isteğe
+            bağlıdır. Adresiniz deney yanıtlarından ayrı tutulacak, yalnızca
+            çekiliş için kullanılacak ve çekiliş tamamlandıktan sonra
+            silinecektir. Kazanma olasılığı geçerli çekiliş katılımı sayısına
+            bağlıdır.
+          </p>
+        )}
+      </section>
+
+      <section className="consent-section">
+        <h2>Katılımcı hakları</h2>
+        <p>
+          Katılımınız gönüllüdür. Herhangi bir ceza almadan veya hak sahibi
+          olduğunuz yararları kaybetmeden onamınızı geri çekebilir ya da
+          katılımınızı istediğiniz zaman sonlandırabilirsiniz. Alternatif,
+          araştırmaya katılmamaktır. Belirli soruları yanıtlamayı
+          reddedebilirsiniz.
+        </p>
+        <p>
+          Araştırmanın sonuçları bilimsel veya mesleki toplantılarda sunulabilir
+          ya da bilimsel dergilerde yayımlanabilir. Yayımlanmış ve yazılı
+          verilerde bireysel gizliliğiniz korunacaktır. Bu çalışmanın verileri,
+          doğrudan kimliğinizi belirleyen bilgiler çıkarıldıktan sonra ek
+          onamınız alınmadan gelecekteki araştırmalarda kullanılabilir veya
+          diğer araştırmacılarla paylaşılabilir.
+        </p>
+      </section>
+
+      <section className="consent-section">
+        <h2>İletişim bilgileri</h2>
+        <p>
+          Araştırma hakkında sorunuz, endişeniz veya şikayetiniz varsa Robert
+          Hawkins ile{' '}
+          <a href={`mailto:${config.contactEmail || 'rdhawkins@stanford.edu'}`}>
+            {config.contactEmail || 'rdhawkins@stanford.edu'}
+          </a>{' '}
+          adresinden ya da 217-549-6923 numarasından iletişime geçebilirsiniz.
+        </p>
+        <p>
+          Araştırma ekibinden bağımsız biriyle görüşmek için Stanford Kurumsal
+          İnceleme Kurulu ile 650-723-2480 numarasından, ücretsiz
+          1-866-680-2906 numarasından veya{' '}
+          <a href="mailto:irbnonmed@stanford.edu">irbnonmed@stanford.edu</a>{' '}
+          adresinden iletişime geçebilirsiniz.
+        </p>
+      </section>
+    </div>
+  );
+}
+
 export default function Experiment() {
   const [stage, setStage] = useState<Stage>('welcome');
   const [launch] = useState(() => readLaunchData());
@@ -421,13 +613,28 @@ export default function Experiment() {
   const [trialStartedAt, setTrialStartedAt] = useState(0);
   const [submissionError, setSubmissionError] = useState('');
   const [confirmationCode, setConfirmationCode] = useState('');
+  const [raffleToken, setRaffleToken] = useState('');
+  const [raffleEmail, setRaffleEmail] = useState('');
+  const [raffleStatus, setRaffleStatus] = useState<
+    'idle' | 'submitting' | 'complete' | 'error'
+  >('idle');
+  const [raffleError, setRaffleError] = useState('');
   const headingRef = useRef<HTMLHeadingElement>(null);
   const lastRecordedTrialRef = useRef('');
   const submissionPendingRef = useRef(false);
   const config = typeof window === 'undefined' ? {} : window.EXPERIMENT_CONFIG ?? {};
+  const configuredFillerCount =
+    Number.isInteger(config.fillerCount) && (config.fillerCount ?? 0) >= 0
+      ? Math.min(config.fillerCount ?? FILLERS.length, FILLERS.length)
+      : FILLERS.length;
   const trials = useMemo(
-    () => buildTrials(launch.listIndex, `${launch.participantId}:${launch.sessionId}`),
-    [launch],
+    () =>
+      buildTrials(
+        launch.listIndex,
+        `${launch.participantId}:${launch.sessionId}`,
+        configuredFillerCount,
+      ),
+    [configuredFillerCount, launch],
   );
 
   const currentTrial = trials[trialIndex];
@@ -457,6 +664,21 @@ export default function Experiment() {
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [stage]);
+
+  useEffect(() => {
+    const siteKey = config.proofOfHumanSiteKey?.trim();
+    if (!consentTimestamp || !siteKey) return;
+    if (document.querySelector('script[data-proof-of-human="true"]')) return;
+
+    const script = document.createElement('script');
+    script.src = 'https://cdn.poh.org/v1/rt.js';
+    script.async = true;
+    script.dataset.siteKey = siteKey;
+    script.dataset.userId = launch.sessionId;
+    script.dataset.tags = `${config.studyId || 'turkish-evidentiality-v1'},${launch.recruitmentSource}`;
+    script.dataset.proofOfHuman = 'true';
+    document.head.appendChild(script);
+  }, [config.proofOfHumanSiteKey, config.studyId, consentTimestamp, launch]);
 
   function updateDemographic(field: keyof Demographics, value: string) {
     setDemographics((current) => {
@@ -579,12 +801,13 @@ export default function Experiment() {
     }
 
     const payload = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       studyId: config.studyId || 'turkish-evidentiality-v1',
       stimulusVersion: STIMULUS_VERSION,
       participant: {
         participantId: launch.participantId,
         participantIdSource: launch.participantIdSource,
+        recruitmentSource: launch.recruitmentSource,
         prolificStudyId: launch.prolificStudyId,
         prolificSessionId: launch.prolificSessionId,
       },
@@ -592,10 +815,15 @@ export default function Experiment() {
         sessionId: launch.sessionId,
         listId: launch.listIndex + 1,
         totalLists: TOTAL_LISTS,
+        contentListId: (launch.listIndex % CONTENT_LISTS) + 1,
+        marker: launch.listIndex < CONTENT_LISTS ? 'di' : 'mis',
+        criticalTrialCount: 16,
+        fillerTrialCount: configuredFillerCount,
         consentedAt: consentTimestamp,
         completedAt: new Date().toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         language: navigator.language,
+        proofOfHumanSessionId: window.getRoundtableSessionId?.() ?? null,
       },
       demographics,
       practiceResponses,
@@ -614,11 +842,15 @@ export default function Experiment() {
       if (!result.ok) throw new Error(`HTTP ${result.status}`);
       const body = (await result.json().catch(() => ({}))) as {
         confirmationCode?: unknown;
+        raffleToken?: unknown;
       };
       setConfirmationCode(
         typeof body.confirmationCode === 'string'
           ? body.confirmationCode
           : launch.sessionId,
+      );
+      setRaffleToken(
+        typeof body.raffleToken === 'string' ? body.raffleToken : '',
       );
       setStage('complete');
     } catch {
@@ -630,7 +862,57 @@ export default function Experiment() {
     }
   }
 
+  async function submitRaffleEntry(event: FormEvent) {
+    event.preventDefault();
+    if (launch.recruitmentSource !== 'network' || raffleStatus === 'submitting') {
+      return;
+    }
+
+    const endpoint = (config.raffleEndpoint || config.endpoint)?.trim();
+    if (!endpoint || !endpoint.startsWith('https://')) {
+      setRaffleError(
+        'Çekiliş kayıt adresi henüz yapılandırılmamış. Lütfen araştırmacıya haber verin.',
+      );
+      setRaffleStatus('error');
+      return;
+    }
+    if (!raffleToken) {
+      setRaffleError(
+        'Çekiliş uygunluk kodu alınamadı. Lütfen araştırmacıya onay kodunuzu iletin.',
+      );
+      setRaffleStatus('error');
+      return;
+    }
+
+    setRaffleStatus('submitting');
+    setRaffleError('');
+    try {
+      const result = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'raffleEntry',
+          studyId: config.studyId || 'turkish-evidentiality-v1',
+          raffleToken,
+          email: raffleEmail.trim(),
+        }),
+        credentials: 'omit',
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+      });
+      if (!result.ok) throw new Error(`HTTP ${result.status}`);
+      setRaffleStatus('complete');
+      setRaffleEmail('');
+    } catch {
+      setRaffleStatus('error');
+      setRaffleError(
+        'E-posta adresiniz kaydedilemedi. İnternet bağlantınızı kontrol edip yeniden deneyin.',
+      );
+    }
+  }
+
   if (stage === 'welcome') {
+    const isProlific = launch.recruitmentSource === 'prolific';
     return (
       <Page>
         <div className="plain-panel">
@@ -638,6 +920,15 @@ export default function Experiment() {
           <p className="lead">
             Bu çalışmada sizden, kısa bağlamlar içinde sunulan Türkçe cümleleri
             değerlendirmenizi isteyeceğiz. Katılım yaklaşık 15 dakika sürer.
+          </p>
+          <p className="source-note">
+            {isProlific
+              ? 'Ödemeniz, çalışmanın Prolific sayfasında belirtilen tutarda Prolific üzerinden yapılacaktır.'
+              : `Çalışmayı tamamladıktan sonra ${config.rafflePrize || '1.000 TL değerindeki Amazon hediye kartı'} çekilişine katılabilirsiniz.`}
+          </p>
+          <p className="device-note">
+            Telefon veya tabletle katılabilirsiniz. Daha rahat bir deneyim için
+            masaüstü ya da dizüstü bilgisayar kullanmanızı öneririz.
           </p>
           <Button onClick={() => setStage('consent')}>Başla</Button>
         </div>
@@ -649,35 +940,8 @@ export default function Experiment() {
     return (
       <Page step="1 / 3">
         <div className="plain-panel form-panel">
-          <h1>Katılımcı bilgi formu</h1>
-          <div className="consent-copy">
-            <p>
-              <strong>Araştırmacı:</strong>{' '}
-              {config.researcherName || '[Araştırmacı adı]'}
-            </p>
-            <p>
-              <strong>Kurum:</strong> {config.institution || '[Kurum ve bölüm]'}
-            </p>
-            <p>
-              <strong>Etik kurul kaydı:</strong>{' '}
-              {config.ethicsReference || '[Etik kurul numarası]'}
-            </p>
-            <p>
-              Bu çalışma, Türkçe cümlelerin farklı bağlamlarda nasıl
-              değerlendirildiğini araştırır. Katılım yaklaşık 15 dakika sürer.
-              Günlük bilgisayar kullanımının ötesinde bilinen bir risk
-              beklenmemektedir.
-            </p>
-            <p>
-              Yanıtlarınız bir katılımcı ve oturum kimliğiyle güvenli bir dış
-              sunucuya gönderilir. GitHub üzerinde hiçbir yanıt saklanmaz. Sayfayı
-              kapatarak istediğiniz anda çalışmadan ayrılabilirsiniz.
-            </p>
-            <p>
-              Sorularınız için:{' '}
-              {config.contactEmail || '[Araştırmacı e-posta adresi]'}
-            </p>
-          </div>
+          <h1>Araştırma bilgilendirme ve onam formu</h1>
+          <ConsentContent source={launch.recruitmentSource} config={config} />
           <label className="check-row">
             <input
               type="checkbox"
@@ -724,9 +988,12 @@ export default function Experiment() {
           <p className="form-note">
             Yanıtlarınızı daha iyi yorumlayabilmek için katılımcılarımızın yaş
             ve dil geçmişi gibi bazı genel özelliklerini bilmemiz gerekiyor.
-            Kimliğinizi doğrudan belirleyen ad, e-posta adresi veya telefon
-            numarası gibi bilgiler istemiyoruz. Bu bilgiler yalnızca araştırma
-            verilerini anlamak ve analiz etmek amacıyla kullanılacaktır.
+            Bu formda ad, e-posta adresi veya telefon numarası istemiyoruz. Bu
+            bilgiler yalnızca araştırma verilerini anlamak ve analiz etmek
+            amacıyla kullanılacaktır.{' '}
+            {launch.recruitmentSource === 'network'
+              ? 'Çekilişe katılmak isterseniz e-posta adresiniz deney bittikten sonra ayrı bir formda istenecek ve deney yanıtlarından ayrı tutulacaktır. '
+              : 'Prolific kimliğiniz yalnızca katılımınızı eşleştirmek ve ödemenizi yönetmek amacıyla kaydedilebilir. '}
             Yıldızlı alanlar zorunludur. Cinsiyet sorusunu yanıtsız
             bırakabilirsiniz.
           </p>
@@ -1029,6 +1296,8 @@ export default function Experiment() {
   }
 
   if (stage === 'complete') {
+    const prolificCompletionUrl =
+      config.prolificCompletionUrl || config.completionUrl;
     return (
       <Page>
         <div className="plain-panel status-panel">
@@ -1037,11 +1306,62 @@ export default function Experiment() {
           <p className="confirmation">
             Onay kodu: <strong>{confirmationCode}</strong>
           </p>
-          {config.completionUrl ? (
-            <a className="button link-button" href={config.completionUrl}>
-              Katılım platformuna dön
-            </a>
-          ) : null}
+          {launch.recruitmentSource === 'prolific' ? (
+            prolificCompletionUrl ? (
+              <a className="button link-button" href={prolificCompletionUrl}>
+                Prolific&apos;e dön
+              </a>
+            ) : (
+              <p className="completion-note">
+                Prolific tamamlama bağlantısı henüz yapılandırılmamış. Yukarıdaki
+                onay kodunu saklayın.
+              </p>
+            )
+          ) : raffleStatus === 'complete' ? (
+            <div className="raffle-complete" role="status">
+              <h2>Çekiliş kaydınız tamamlandı.</h2>
+              <p>
+                Kazanmanız halinde sizinle paylaştığınız e-posta adresi üzerinden
+                iletişime geçeceğiz.
+              </p>
+            </div>
+          ) : (
+            <form className="raffle-form" onSubmit={submitRaffleEntry}>
+              <h2>Amazon hediye kartı çekilişi</h2>
+              <p>
+                {config.rafflePrize || '1.000 TL değerindeki Amazon hediye kartı'}{' '}
+                çekilişine katılmak için e-posta adresinizi yazın. Bu adres deney
+                yanıtlarından ayrı kaydedilecektir.
+              </p>
+              <label>
+                <span>E-posta adresiniz</span>
+                <input
+                  required
+                  type="email"
+                  autoComplete="email"
+                  value={raffleEmail}
+                  onChange={(event) => setRaffleEmail(event.target.value)}
+                />
+              </label>
+              {raffleStatus === 'error' ? (
+                <p className="form-error" role="alert">
+                  {raffleError}
+                </p>
+              ) : null}
+              <Button
+                type="submit"
+                disabled={!raffleEmail.trim() || raffleStatus === 'submitting'}
+              >
+                {raffleStatus === 'submitting'
+                  ? 'Kaydediliyor…'
+                  : 'Çekilişe katıl'}
+              </Button>
+              <p className="raffle-optional">
+                Çekilişe katılmak isteğe bağlıdır. Katılmadan da bu pencereyi
+                kapatabilirsiniz.
+              </p>
+            </form>
+          )}
         </div>
       </Page>
     );

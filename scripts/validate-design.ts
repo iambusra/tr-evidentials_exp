@@ -36,34 +36,46 @@ for (const item of CRITICAL_ITEMS) {
   for (const condition of CONDITION_KEYS) {
     assert.ok(item.contexts[condition].length >= 20, `${item.id} is missing ${condition}`);
   }
-
-  const cells = new Set<string>();
-  for (let listIndex = 0; listIndex < 16; listIndex += 1) {
-    const itemIndex = CRITICAL_ITEMS.indexOf(item);
-    const condition = CONDITION_KEYS[(itemIndex + (listIndex % 8)) % 8];
-    const marker = (itemIndex + Math.floor(listIndex / 8)) % 2 === 0 ? 'di' : 'mis';
-    cells.add(`${condition}:${marker}`);
-  }
-  assert.equal(cells.size, 16, `${item.id} must rotate through all 16 cells`);
 }
 
-for (let listIndex = 0; listIndex < 16; listIndex += 1) {
-  const markers = CRITICAL_ITEMS.map((_, itemIndex) =>
-    (itemIndex + Math.floor(listIndex / 8)) % 2 === 0 ? 'di' : 'mis',
-  );
-  assert.equal(markers.filter((marker) => marker === 'di').length, 19);
-  assert.equal(markers.filter((marker) => marker === 'mis').length, 19);
+const contentListCount = CRITICAL_ITEMS.length / 2;
+assert.equal(contentListCount, 19, 'Expected 19 content lists per marker');
 
-  const conditionCounts = new Map(CONDITION_KEYS.map((condition) => [condition, 0]));
-  CRITICAL_ITEMS.forEach((_, itemIndex) => {
-    const condition = CONDITION_KEYS[(itemIndex + (listIndex % 8)) % 8];
-    conditionCounts.set(condition, (conditionCounts.get(condition) ?? 0) + 1);
-  });
-  for (const count of conditionCounts.values()) {
-    assert.ok(count === 4 || count === 5, 'Every list must distribute items evenly across conditions');
+for (const marker of ['di', 'mis'] as const) {
+  const coverage = new Map<string, number>();
+
+  for (let contentList = 0; contentList < contentListCount; contentList += 1) {
+    const selectedItemIds = new Set<string>();
+    const conditionCounts = new Map(CONDITION_KEYS.map((condition) => [condition, 0]));
+
+    CONDITION_KEYS.forEach((condition, conditionIndex) => {
+      const itemRow = (contentList + conditionIndex) % contentListCount;
+      for (const itemIndex of [itemRow, itemRow + contentListCount]) {
+        const item = CRITICAL_ITEMS[itemIndex];
+        selectedItemIds.add(item.id);
+        conditionCounts.set(condition, (conditionCounts.get(condition) ?? 0) + 1);
+        const cell = `${item.id}:${condition}:${marker}`;
+        coverage.set(cell, (coverage.get(cell) ?? 0) + 1);
+      }
+    });
+
+    assert.equal(selectedItemIds.size, 16, 'Each list must contain 16 unique critical items');
+    for (const count of conditionCounts.values()) {
+      assert.equal(count, 2, 'Each list must contain two critical items per condition');
+    }
+  }
+
+  for (const item of CRITICAL_ITEMS) {
+    for (const condition of CONDITION_KEYS) {
+      assert.equal(
+        coverage.get(`${item.id}:${condition}:${marker}`),
+        1,
+        `${item.id}:${condition}:${marker} must appear once per content-list cycle`,
+      );
+    }
   }
 }
 
 console.log(
-  'Design validation passed: 38 critical items, 8 conditions, 2 markers, 24 fillers, 3 practice trials, and 2 attention checks.',
+  'Design validation passed: 38 items, 19 content lists per marker, 16 critical trials per participant, 8 conditions, 24 available fillers, 3 practice trials, and 2 attention checks.',
 );
