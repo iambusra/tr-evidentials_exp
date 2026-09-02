@@ -6,7 +6,7 @@ window.EXPERIMENT_CONFIG = {
   endpoint: "https://script.google.com/macros/s/AKfycbyF_WzMPTCHi_-upQIbRDRZu_7QiUl9kRGCg8FSH-hG3rCV95rLJcT_jVMC0gGib4hqDQ/exec",
   raffleEndpoint: "https://script.google.com/macros/s/AKfycbyF_WzMPTCHi_-upQIbRDRZu_7QiUl9kRGCg8FSH-hG3rCV95rLJcT_jVMC0gGib4hqDQ/exec",
   completionUrl: "",
-  prolificCompletionUrl: "",
+  prolificCompletionUrl: "https://app.prolific.com/submissions/complete?cc=C5HZQTHI",
   studyId: "turkish-evidentiality-v1",
   researcherName: "Robert Hawkins",
   institution: "Stanford University",
