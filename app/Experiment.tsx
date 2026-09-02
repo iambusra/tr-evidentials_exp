@@ -497,6 +497,7 @@ function ConsentContent({
   source: RecruitmentSource;
   config: ExperimentConfig;
 }) {
+  const [showFullConsent, setShowFullConsent] = useState(false);
   const protocolTitle =
     config.protocolTitle ||
     'Communication and social cognition in natural audiovisual contexts';
@@ -546,91 +547,111 @@ function ConsentContent({
         </p>
       </section>
 
-      <section className="consent-section">
-        <h2>Riskler ve yararlar</h2>
-        <p>
-          Bu çalışma, günlük internet kullanımının ötesinde önemli bir risk
-          taşımaz. Bazı cümleleri değerlendirmek yorucu veya tekrarlı gelebilir.
-          Yanıtlarınız, gizlilik ihlali riskini en aza indirmek için Stanford
-          Üniversitesi standartlarına uygun özel bir Google Drive alanında
-          güvenli olarak saklanacaktır.
-        </p>
-        <p>
-          Veri kalitesini korumak için Proof of Human adlı üçüncü taraf araç;
-          imleç hareketleri, tuş ritmi, kaydırma, sayfa odağı ile cihaz ve ağ
-          bilgilerini işleyerek otomatik veya şüpheli oturumlar için bir risk
-          puanı üretecektir. Bu çalışma kapsamında yalnızca izleme amacıyla
-          kullanılacak ve tek başına katılımcıları engellemek ya da yanıtları
-          dışlamak için kullanılmayacaktır.
-        </p>
-        <p>
-          Bu çalışma, Türkçede anlamın bağlam içinde nasıl yorumlandığına ilişkin
-          bilimsel bilgimizi geliştirebilir. Bu çalışmadan herhangi bir yarar
-          sağlayacağınızı garanti edemeyiz veya vaat edemeyiz.
-        </p>
-      </section>
+      {!showFullConsent ? (
+        <button
+          type="button"
+          className="consent-read-more"
+          aria-expanded="false"
+          onClick={() => setShowFullConsent(true)}
+        >
+          Devamını oku
+        </button>
+      ) : null}
 
-      <section className="consent-section">
-        <h2>{source === 'prolific' ? 'Ödeme' : 'Çekiliş'}</h2>
-        {source === 'prolific' ? (
-          <p>
-            Prolific üzerinden katılıyorsanız, Prolific&apos;te ilan edilen
-            tutarda ödeme alacaksınız. Çalışmayı tamamlamazsanız, harcadığınız
-            süreye orantılı ödeme alacaksınız. Prolific kimliğiniz,
-            katılımınızı eşleştirmek ve ödemenizi yönetmek amacıyla
-            kaydedilebilir.
-          </p>
-        ) : (
-          <p>
-            Çalışmayı tamamladıktan sonra e-posta adresinizi paylaşarak bir
-            katılımcıya verilecek{' '}
-            {config.rafflePrize || '1.000 TL değerindeki Amazon hediye kartı'}{' '}
-            çekilişine katılabilirsiniz. E-posta adresinizi paylaşmak isteğe
-            bağlıdır. Adresiniz deney yanıtlarından ayrı tutulacak, yalnızca
-            çekiliş için kullanılacak ve çekiliş tamamlandıktan sonra
-            silinecektir. Kazanma olasılığı geçerli çekiliş katılımı sayısına
-            bağlıdır.
-          </p>
-        )}
-      </section>
+      {showFullConsent ? (
+        <>
+          <section className="consent-section">
+            <h2>Riskler ve yararlar</h2>
+            <p>
+              Bu çalışma, günlük internet kullanımının ötesinde önemli bir risk
+              taşımaz. Bazı cümleleri değerlendirmek yorucu veya tekrarlı
+              gelebilir. Yanıtlarınız, gizlilik ihlali riskini en aza indirmek
+              için Stanford Üniversitesi standartlarına uygun özel bir Google
+              Drive alanında güvenli olarak saklanacaktır.
+            </p>
+            <p>
+              Veri kalitesini korumak için Proof of Human adlı üçüncü taraf araç;
+              imleç hareketleri, tuş ritmi, kaydırma, sayfa odağı ile cihaz ve ağ
+              bilgilerini işleyerek otomatik veya şüpheli oturumlar için bir risk
+              puanı üretecektir. Bu çalışma kapsamında yalnızca izleme amacıyla
+              kullanılacak ve tek başına katılımcıları engellemek ya da yanıtları
+              dışlamak için kullanılmayacaktır.
+            </p>
+            <p>
+              Bu çalışma, Türkçede anlamın bağlam içinde nasıl yorumlandığına
+              ilişkin bilimsel bilgimizi geliştirebilir. Bu çalışmadan herhangi
+              bir yarar sağlayacağınızı garanti edemeyiz veya vaat edemeyiz.
+            </p>
+          </section>
 
-      <section className="consent-section">
-        <h2>Katılımcı hakları</h2>
-        <p>
-          Katılımınız gönüllüdür. Herhangi bir ceza almadan veya hak sahibi
-          olduğunuz yararları kaybetmeden onamınızı geri çekebilir ya da
-          katılımınızı istediğiniz zaman sonlandırabilirsiniz. Alternatif,
-          araştırmaya katılmamaktır. Belirli soruları yanıtlamayı
-          reddedebilirsiniz.
-        </p>
-        <p>
-          Araştırmanın sonuçları bilimsel veya mesleki toplantılarda sunulabilir
-          ya da bilimsel dergilerde yayımlanabilir. Yayımlanmış ve yazılı
-          verilerde bireysel gizliliğiniz korunacaktır. Bu çalışmanın verileri,
-          doğrudan kimliğinizi belirleyen bilgiler çıkarıldıktan sonra ek
-          onamınız alınmadan gelecekteki araştırmalarda kullanılabilir veya
-          diğer araştırmacılarla paylaşılabilir.
-        </p>
-      </section>
+          <section className="consent-section">
+            <h2>{source === 'prolific' ? 'Ödeme' : 'Çekiliş'}</h2>
+            {source === 'prolific' ? (
+              <p>
+                Prolific üzerinden katılıyorsanız, Prolific&apos;te ilan edilen
+                tutarda ödeme alacaksınız. Çalışmayı tamamlamazsanız, harcadığınız
+                süreye orantılı ödeme alacaksınız. Prolific kimliğiniz,
+                katılımınızı eşleştirmek ve ödemenizi yönetmek amacıyla
+                kaydedilebilir.
+              </p>
+            ) : (
+              <p>
+                Çalışmayı tamamladıktan sonra e-posta adresinizi paylaşarak
+                çekilişe katılabilirsiniz. Çekilişe katılan her 10 kişiden biri{' '}
+                {config.rafflePrize ||
+                  '1.000 TL değerindeki Amazon hediye kartı'}{' '}
+                kazanacaktır. Kazananlara 30 Eylül 2026 tarihine kadar e-posta
+                ile ulaşacağız. E-posta adresinizi paylaşmak isteğe bağlıdır.
+                Adresiniz deney yanıtlarından ayrı tutulacak, yalnızca çekiliş
+                için kullanılacak ve çekiliş tamamlandıktan sonra silinecektir.
+              </p>
+            )}
+          </section>
 
-      <section className="consent-section">
-        <h2>İletişim bilgileri</h2>
-        <p>
-          Araştırma hakkında sorunuz, endişeniz veya şikayetiniz varsa Robert
-          Hawkins ile{' '}
-          <a href={`mailto:${config.contactEmail || 'rdhawkins@stanford.edu'}`}>
-            {config.contactEmail || 'rdhawkins@stanford.edu'}
-          </a>{' '}
-          adresinden ya da 217-549-6923 numarasından iletişime geçebilirsiniz.
-        </p>
-        <p>
-          Araştırma ekibinden bağımsız biriyle görüşmek için Stanford Kurumsal
-          İnceleme Kurulu ile 650-723-2480 numarasından, ücretsiz
-          1-866-680-2906 numarasından veya{' '}
-          <a href="mailto:irbnonmed@stanford.edu">irbnonmed@stanford.edu</a>{' '}
-          adresinden iletişime geçebilirsiniz.
-        </p>
-      </section>
+          <section className="consent-section">
+            <h2>Katılımcı hakları</h2>
+            <p>
+              Katılımınız gönüllüdür. Herhangi bir ceza almadan veya hak sahibi
+              olduğunuz yararları kaybetmeden onamınızı geri çekebilir ya da
+              katılımınızı istediğiniz zaman sonlandırabilirsiniz. Alternatif,
+              araştırmaya katılmamaktır. Belirli soruları yanıtlamayı
+              reddedebilirsiniz.
+            </p>
+            <p>
+              Araştırmanın sonuçları bilimsel veya mesleki toplantılarda
+              sunulabilir ya da bilimsel dergilerde yayımlanabilir. Yayımlanmış
+              ve yazılı verilerde bireysel gizliliğiniz korunacaktır. Bu
+              çalışmanın verileri, doğrudan kimliğinizi belirleyen bilgiler
+              çıkarıldıktan sonra ek onamınız alınmadan gelecekteki
+              araştırmalarda kullanılabilir veya diğer araştırmacılarla
+              paylaşılabilir.
+            </p>
+          </section>
+
+          <section className="consent-section">
+            <h2>İletişim bilgileri</h2>
+            <p>
+              Araştırma hakkında sorunuz, endişeniz veya şikayetiniz varsa Robert
+              Hawkins ile{' '}
+              <a
+                href={`mailto:${config.contactEmail || 'rdhawkins@stanford.edu'}`}
+              >
+                {config.contactEmail || 'rdhawkins@stanford.edu'}
+              </a>{' '}
+              adresinden ya da 217-549-6923 numarasından iletişime geçebilirsiniz.
+            </p>
+            <p>
+              Araştırma ekibinden bağımsız biriyle görüşmek için Stanford
+              Kurumsal İnceleme Kurulu ile 650-723-2480 numarasından, ücretsiz
+              1-866-680-2906 numarasından veya{' '}
+              <a href="mailto:irbnonmed@stanford.edu">
+                irbnonmed@stanford.edu
+              </a>{' '}
+              adresinden iletişime geçebilirsiniz.
+            </p>
+          </section>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -945,7 +966,7 @@ export default function Experiment() {
           <p className="source-note">
             {isProlific
               ? 'Ödemeniz, çalışmanın Prolific sayfasında belirtilen tutarda Prolific üzerinden yapılacaktır.'
-              : `Çalışmayı tamamladıktan sonra ${config.rafflePrize || '1.000 TL değerindeki Amazon hediye kartı'} çekilişine katılabilirsiniz.`}
+              : `Çalışmayı tamamlayıp çekilişe katılan her 10 kişiden biri ${config.rafflePrize || '1.000 TL değerindeki Amazon hediye kartı'} kazanacaktır. Kazananlara 30 Eylül 2026 tarihine kadar e-posta ile ulaşacağız.`}
           </p>
           <p className="device-note">
             Telefon veya tabletle katılabilirsiniz. Daha rahat bir deneyim için
@@ -1343,16 +1364,18 @@ export default function Experiment() {
               <h2>Çekiliş kaydınız tamamlandı.</h2>
               <p>
                 Kazanmanız halinde sizinle paylaştığınız e-posta adresi üzerinden
-                iletişime geçeceğiz.
+                30 Eylül 2026 tarihine kadar iletişime geçeceğiz.
               </p>
             </div>
           ) : (
             <form className="raffle-form" onSubmit={submitRaffleEntry}>
               <h2>Amazon hediye kartı çekilişi</h2>
               <p>
+                Çekilişe katılan her 10 kişiden biri{' '}
                 {config.rafflePrize || '1.000 TL değerindeki Amazon hediye kartı'}{' '}
-                çekilişine katılmak için e-posta adresinizi yazın. Bu adres deney
-                yanıtlarından ayrı kaydedilecektir.
+                kazanacaktır. Katılmak için e-posta adresinizi yazın. Kazananlara
+                30 Eylül 2026 tarihine kadar e-posta ile ulaşacağız. Bu adres
+                deney yanıtlarından ayrı kaydedilecektir.
               </p>
               <label>
                 <span>E-posta adresiniz</span>

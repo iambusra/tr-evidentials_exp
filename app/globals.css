@@ -175,6 +175,25 @@ select {
   text-transform: uppercase;
 }
 
+.consent-read-more {
+  margin: 0 0 26px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.consent-read-more:hover,
+.consent-read-more:focus-visible {
+  color: var(--accent-dark);
+  outline: 2px solid rgba(36, 91, 70, 0.2);
+  outline-offset: 4px;
+}
+
 .check-row {
   display: flex;
   align-items: flex-start;
