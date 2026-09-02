@@ -49,7 +49,7 @@ Your endpoint must:
 - de-duplicate by `session.sessionId`;
 - return a 2xx response, optionally with `{"confirmationCode":"..."}`.
 
-Suitable endpoint implementations include an institutional server, a Cloudflare Worker, a Supabase Edge Function, or another serverless function backed by access-controlled storage. The static site itself never writes data to GitHub, browser storage, or the JavaScript console.
+The included `backend/google-apps-script` receiver is the primary endpoint implementation. It writes one JSON file per completed session to a private Google Drive folder and stores raffle emails in a separate private spreadsheet. The static site itself never writes data to GitHub, browser storage, or the JavaScript console.
 
 ## Prolific
 

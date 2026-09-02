@@ -121,7 +121,47 @@ declare global {
 const CONTENT_LISTS = CRITICAL_ITEMS.length / 2;
 const TOTAL_LISTS = CONTENT_LISTS * 2;
 const SCALE = [1, 2, 3, 4, 5, 6, 7];
-const STIMULUS_VERSION = '2026-09-01-r4';
+const STIMULUS_VERSION = '2026-09-02-r5';
+
+function isGoogleAppsScriptEndpoint(endpoint: string) {
+  try {
+    const hostname = new URL(endpoint).hostname;
+    return (
+      hostname === 'script.google.com' ||
+      hostname.endsWith('.script.google.com') ||
+      hostname === 'script.googleusercontent.com' ||
+      hostname.endsWith('.script.googleusercontent.com')
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function postJson(endpoint: string, payload: unknown) {
+  const result = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': isGoogleAppsScriptEndpoint(endpoint)
+        ? 'text/plain;charset=UTF-8'
+        : 'application/json',
+    },
+    body: JSON.stringify(payload),
+    credentials: 'omit',
+    cache: 'no-store',
+    referrerPolicy: 'no-referrer',
+  });
+  if (!result.ok) throw new Error(`HTTP ${result.status}`);
+
+  const body = (await result.json().catch(() => null)) as
+    | Record<string, unknown>
+    | null;
+  if (!body || body.ok === false) {
+    throw new Error(
+      typeof body?.errorCode === 'string' ? body.errorCode : 'INVALID_RESPONSE',
+    );
+  }
+  return body;
+}
 
 const EMPTY_DEMOGRAPHICS: Demographics = {
   ageBand: '',
@@ -801,6 +841,7 @@ export default function Experiment() {
     }
 
     const payload = {
+      action: 'submitExperiment',
       schemaVersion: 3,
       studyId: config.studyId || 'turkish-evidentiality-v1',
       stimulusVersion: STIMULUS_VERSION,
@@ -831,19 +872,7 @@ export default function Experiment() {
     };
 
     try {
-      const result = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        credentials: 'omit',
-        cache: 'no-store',
-        referrerPolicy: 'no-referrer',
-      });
-      if (!result.ok) throw new Error(`HTTP ${result.status}`);
-      const body = (await result.json().catch(() => ({}))) as {
-        confirmationCode?: unknown;
-        raffleToken?: unknown;
-      };
+      const body = await postJson(endpoint, payload);
       setConfirmationCode(
         typeof body.confirmationCode === 'string'
           ? body.confirmationCode
@@ -887,20 +916,12 @@ export default function Experiment() {
     setRaffleStatus('submitting');
     setRaffleError('');
     try {
-      const result = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'raffleEntry',
-          studyId: config.studyId || 'turkish-evidentiality-v1',
-          raffleToken,
-          email: raffleEmail.trim(),
-        }),
-        credentials: 'omit',
-        cache: 'no-store',
-        referrerPolicy: 'no-referrer',
+      await postJson(endpoint, {
+        action: 'raffleEntry',
+        studyId: config.studyId || 'turkish-evidentiality-v1',
+        raffleToken,
+        email: raffleEmail.trim(),
       });
-      if (!result.ok) throw new Error(`HTTP ${result.status}`);
       setRaffleStatus('complete');
       setRaffleEmail('');
     } catch {

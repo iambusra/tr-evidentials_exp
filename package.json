@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "npx serve out",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern out",
-    "test": "node --experimental-strip-types scripts/validate-design.ts"
+    "test": "node --experimental-strip-types scripts/validate-design.ts && node scripts/validate-backend.mjs"
   },
   "dependencies": {
     "next": "^16.3.2",
