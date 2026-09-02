@@ -3,8 +3,8 @@
  * Never add database passwords, service-role keys, API secrets, or participant data.
  */
 window.EXPERIMENT_CONFIG = {
-  endpoint: "",
-  raffleEndpoint: "",
+  endpoint: "https://script.google.com/macros/s/AKfycbyF_WzMPTCHi_-upQIbRDRZu_7QiUl9kRGCg8FSH-hG3rCV95rLJcT_jVMC0gGib4hqDQ/exec",
+  raffleEndpoint: "https://script.google.com/macros/s/AKfycbyF_WzMPTCHi_-upQIbRDRZu_7QiUl9kRGCg8FSH-hG3rCV95rLJcT_jVMC0gGib4hqDQ/exec",
   completionUrl: "",
   prolificCompletionUrl: "",
   studyId: "turkish-evidentiality-v1",
