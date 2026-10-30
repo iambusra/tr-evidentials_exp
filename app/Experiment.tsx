@@ -600,7 +600,7 @@ function ConsentContent({
                 çekilişe katılabilirsiniz. Çekilişe katılan her 10 kişiden biri{' '}
                 {config.rafflePrize ||
                   '1.000 TL değerindeki Amazon hediye kartı'}{' '}
-                kazanacaktır. Kazananlara 30 Eylül 2026 tarihine kadar e-posta
+                kazanacaktır. Kazananlara 30 Kasım 2026 tarihine kadar e-posta
                 ile ulaşacağız. E-posta adresinizi paylaşmak isteğe bağlıdır.
                 Adresiniz deney yanıtlarından ayrı tutulacak, yalnızca çekiliş
                 için kullanılacak ve çekiliş tamamlandıktan sonra silinecektir.
@@ -966,7 +966,7 @@ export default function Experiment() {
           <p className="source-note">
             {isProlific
               ? 'Ödemeniz, çalışmanın Prolific sayfasında belirtilen tutarda Prolific üzerinden yapılacaktır.'
-              : `Çalışmayı tamamlayıp çekilişe katılan her 10 kişiden biri ${config.rafflePrize || '1.000 TL değerindeki Amazon hediye kartı'} kazanacaktır. Kazananlara 30 Eylül 2026 tarihine kadar e-posta ile ulaşacağız.`}
+              : `Çalışmayı tamamlayıp çekilişe katılan her 10 kişiden biri ${config.rafflePrize || '1.000 TL değerindeki Amazon hediye kartı'} kazanacaktır. Kazananlara 30 Kasım 2026 tarihine kadar e-posta ile ulaşacağız.`}
           </p>
           <p className="device-note">
             Telefon veya tabletle katılabilirsiniz. Daha rahat bir deneyim için
@@ -1364,7 +1364,7 @@ export default function Experiment() {
               <h2>Çekiliş kaydınız tamamlandı.</h2>
               <p>
                 Kazanmanız halinde sizinle paylaştığınız e-posta adresi üzerinden
-                30 Eylül 2026 tarihine kadar iletişime geçeceğiz.
+                30 Kasım 2026 tarihine kadar iletişime geçeceğiz.
               </p>
             </div>
           ) : (
@@ -1374,7 +1374,7 @@ export default function Experiment() {
                 Çekilişe katılan her 10 kişiden biri{' '}
                 {config.rafflePrize || '1.000 TL değerindeki Amazon hediye kartı'}{' '}
                 kazanacaktır. Katılmak için e-posta adresinizi yazın. Kazananlara
-                30 Eylül 2026 tarihine kadar e-posta ile ulaşacağız. Bu adres
+                30 Kasım 2026 tarihine kadar e-posta ile ulaşacağız. Bu adres
                 deney yanıtlarından ayrı kaydedilecektir.
               </p>
               <label>
