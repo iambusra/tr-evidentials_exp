@@ -19,6 +19,8 @@ type Stage =
   | 'practice'
   | 'ready'
   | 'trials'
+  | 'realtime-ready'
+  | 'realtime'
   | 'submitting'
   | 'complete'
   | 'error'
@@ -73,6 +75,23 @@ type TrialResponse = {
   attentionPassed: boolean | null;
 };
 
+type RealtimeAnswer = 'yes' | 'no' | 'unclear';
+
+type RealtimeResponse = {
+  trialId: string;
+  itemId: string;
+  sequence: number;
+  condition: ConditionKey;
+  marker: Marker;
+  evidenceSource: 'own' | 'reportative';
+  evidenceStrength: 'strong' | 'weak';
+  intendedAcquisitionTiming: 'realtime' | 'after';
+  answer: RealtimeAnswer;
+  expectedAnswer: Exclude<RealtimeAnswer, 'unclear'>;
+  matchesIntendedTiming: boolean;
+  responseTimeMs: number;
+};
+
 type PracticeResponse = {
   practiceId: string;
   rating: number;
@@ -121,7 +140,7 @@ declare global {
 const CONTENT_LISTS = CRITICAL_ITEMS.length / 2;
 const TOTAL_LISTS = CONTENT_LISTS * 2;
 const SCALE = [1, 2, 3, 4, 5, 6, 7];
-const STIMULUS_VERSION = '2026-09-02-r5';
+const STIMULUS_VERSION = '2026-10-30-r6';
 
 function isGoogleAppsScriptEndpoint(endpoint: string) {
   try {
@@ -532,15 +551,16 @@ function ConsentContent({
           amacı, Türkçe konuşurların cümleleri farklı bağlamlarda ne kadar doğal
           ve uygun bulduklarını anlamaktır. Katılmayı seçerseniz kısa bağlamlar
           ve bunları izleyen cümleler okuyacak, her cümlenin bağlama uygunluğunu
-          1 ile 7 arasında değerlendirecek ve dil geçmişiniz ile bazı genel
-          demografik bilgilerinize ilişkin soruları yanıtlayacaksınız.
+          1 ile 7 arasında değerlendirecek, bazı bağlamlarda olayla ilgili
+          bilginin ne zaman edinildiğine ilişkin soruları yanıtlayacak ve dil
+          geçmişiniz ile bazı genel demografik bilgilerinizi paylaşacaksınız.
         </p>
       </section>
 
       <section className="consent-section">
         <h2>Süre</h2>
         <p>
-          Çalışma yaklaşık 15 dakika sürecektir. Cep telefonu veya tabletle
+          Çalışma yaklaşık 20 dakika sürecektir. Cep telefonu veya tabletle
           katılabilirsiniz. Daha rahat bir deneyim için masaüstü ya da dizüstü
           bilgisayar kullanmanızı öneririz. İstediğiniz zaman çalışmadan
           ayrılabilirsiniz.
@@ -672,6 +692,11 @@ export default function Experiment() {
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const [responses, setResponses] = useState<TrialResponse[]>([]);
   const [trialStartedAt, setTrialStartedAt] = useState(0);
+  const [realtimeIndex, setRealtimeIndex] = useState(0);
+  const [selectedRealtimeAnswer, setSelectedRealtimeAnswer] =
+    useState<RealtimeAnswer | null>(null);
+  const [realtimeResponses, setRealtimeResponses] = useState<RealtimeResponse[]>([]);
+  const [realtimeStartedAt, setRealtimeStartedAt] = useState(0);
   const [submissionError, setSubmissionError] = useState('');
   const [confirmationCode, setConfirmationCode] = useState('');
   const [raffleToken, setRaffleToken] = useState('');
@@ -681,7 +706,9 @@ export default function Experiment() {
   >('idle');
   const [raffleError, setRaffleError] = useState('');
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const realtimeHeadingRef = useRef<HTMLLegendElement>(null);
   const lastRecordedTrialRef = useRef('');
+  const lastRecordedRealtimeRef = useRef('');
   const submissionPendingRef = useRef(false);
   const config = typeof window === 'undefined' ? {} : window.EXPERIMENT_CONFIG ?? {};
   const configuredFillerCount =
@@ -697,9 +724,22 @@ export default function Experiment() {
       ),
     [configuredFillerCount, launch],
   );
+  const realtimeTrials = useMemo(
+    () =>
+      shuffle(
+        trials.filter(
+          (trial): trial is CriticalTrial => trial.type === 'critical',
+        ),
+        seededRandom(
+          `${launch.participantId}:${launch.sessionId}:realtime-checks`,
+        ),
+      ),
+    [launch, trials],
+  );
 
   const currentTrial = trials[trialIndex];
   const currentPractice = PRACTICE_TRIALS[practiceIndex];
+  const currentRealtimeTrial = realtimeTrials[realtimeIndex];
 
   useEffect(() => {
     if (window.location.search) {
@@ -712,15 +752,25 @@ export default function Experiment() {
   }, []);
 
   useEffect(() => {
-    if (stage === 'trials' || stage === 'practice') {
+    if (stage === 'trials' || stage === 'practice' || stage === 'realtime') {
       window.scrollTo({ top: 0, behavior: 'instant' });
-      requestAnimationFrame(() => headingRef.current?.focus());
+      requestAnimationFrame(() => {
+        if (stage === 'realtime') realtimeHeadingRef.current?.focus();
+        else headingRef.current?.focus();
+      });
     }
-  }, [stage, trialIndex, practiceIndex]);
+  }, [stage, trialIndex, practiceIndex, realtimeIndex]);
 
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
-      if (stage === 'trials' || stage === 'submitting') event.preventDefault();
+      if (
+        stage === 'trials' ||
+        stage === 'realtime-ready' ||
+        stage === 'realtime' ||
+        stage === 'submitting'
+      ) {
+        event.preventDefault();
+      }
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
@@ -837,7 +887,8 @@ export default function Experiment() {
     const completedResponses = [...responses, response];
     setResponses(completedResponses);
     if (trialIndex === trials.length - 1) {
-      void submitData(completedResponses);
+      setSelectedRating(null);
+      setStage('realtime-ready');
     } else {
       setTrialStartedAt(performance.now());
       setSelectedRating(null);
@@ -845,7 +896,49 @@ export default function Experiment() {
     }
   }
 
-  async function submitData(responsesToSubmit = responses) {
+  function recordRealtimeResponse() {
+    if (
+      selectedRealtimeAnswer === null ||
+      !currentRealtimeTrial ||
+      lastRecordedRealtimeRef.current === currentRealtimeTrial.trialId
+    ) {
+      return;
+    }
+    lastRecordedRealtimeRef.current = currentRealtimeTrial.trialId;
+
+    const factors = CONDITION_FACTORS[currentRealtimeTrial.condition];
+    const expectedAnswer =
+      factors.acquisitionTiming === 'realtime' ? 'yes' : 'no';
+    const response: RealtimeResponse = {
+      trialId: currentRealtimeTrial.trialId,
+      itemId: currentRealtimeTrial.itemId,
+      sequence: realtimeIndex + 1,
+      condition: currentRealtimeTrial.condition,
+      marker: currentRealtimeTrial.marker,
+      evidenceSource: factors.evidenceSource,
+      evidenceStrength: factors.evidenceStrength,
+      intendedAcquisitionTiming: factors.acquisitionTiming,
+      answer: selectedRealtimeAnswer,
+      expectedAnswer,
+      matchesIntendedTiming: selectedRealtimeAnswer === expectedAnswer,
+      responseTimeMs: Math.round(performance.now() - realtimeStartedAt),
+    };
+
+    const completedRealtimeResponses = [...realtimeResponses, response];
+    setRealtimeResponses(completedRealtimeResponses);
+    if (realtimeIndex === realtimeTrials.length - 1) {
+      void submitData(responses, completedRealtimeResponses);
+    } else {
+      setRealtimeStartedAt(performance.now());
+      setSelectedRealtimeAnswer(null);
+      setRealtimeIndex((current) => current + 1);
+    }
+  }
+
+  async function submitData(
+    responsesToSubmit = responses,
+    realtimeResponsesToSubmit = realtimeResponses,
+  ) {
     if (submissionPendingRef.current) return;
     submissionPendingRef.current = true;
     setStage('submitting');
@@ -863,7 +956,7 @@ export default function Experiment() {
 
     const payload = {
       action: 'submitExperiment',
-      schemaVersion: 3,
+      schemaVersion: 4,
       studyId: config.studyId || 'turkish-evidentiality-v1',
       stimulusVersion: STIMULUS_VERSION,
       participant: {
@@ -881,6 +974,7 @@ export default function Experiment() {
         marker: launch.listIndex < CONTENT_LISTS ? 'di' : 'mis',
         criticalTrialCount: 16,
         fillerTrialCount: configuredFillerCount,
+        realtimeCheckCount: realtimeTrials.length,
         consentedAt: consentTimestamp,
         completedAt: new Date().toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -890,6 +984,7 @@ export default function Experiment() {
       demographics,
       practiceResponses,
       responses: responsesToSubmit,
+      realtimeResponses: realtimeResponsesToSubmit,
     };
 
     try {
@@ -961,7 +1056,7 @@ export default function Experiment() {
           <h1>Türkçede anlamı nasıl yorumladığımızı araştırıyoruz.</h1>
           <p className="lead">
             Bu çalışmada sizden, kısa bağlamlar içinde sunulan Türkçe cümleleri
-            değerlendirmenizi isteyeceğiz. Katılım yaklaşık 15 dakika sürer.
+            değerlendirmenizi isteyeceğiz. Katılım yaklaşık 20 dakika sürer.
           </p>
           <p className="source-note">
             {isProlific
@@ -1316,6 +1411,94 @@ export default function Experiment() {
               <Button
                 disabled={selectedRating === null}
                 onClick={recordResponse}
+              >
+                Devam et
+              </Button>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (stage === 'realtime-ready') {
+    return (
+      <Page>
+        <div className="plain-panel">
+          <h1>Cümle değerlendirmelerini tamamladınız.</h1>
+          <p className="lead">
+            Şimdi deneyde gördüğünüz 16 bağlamı bir kez daha göstereceğiz. Bu
+            kez cümlelerin uygunluğunu değil, olayla ilgili bilginin ne zaman
+            edinildiğini soracağız. Her bağlam için size en uygun seçeneği
+            işaretleyin.
+          </p>
+          <Button
+            onClick={() => {
+              setRealtimeStartedAt(performance.now());
+              setStage('realtime');
+            }}
+          >
+            Bağlam sorularına başla
+          </Button>
+        </div>
+      </Page>
+    );
+  }
+
+  if (stage === 'realtime' && currentRealtimeTrial) {
+    const realtimeOptions: Array<{
+      value: RealtimeAnswer;
+      label: string;
+    }> = [
+      { value: 'yes', label: 'Evet' },
+      { value: 'no', label: 'Hayır' },
+      { value: 'unclear', label: 'Bağlamdan anlaşılmıyor' },
+    ];
+
+    return (
+      <main className="page">
+        <header className="topbar">
+          <span>Bağlam Soruları</span>
+          <span className="topbar-step">
+            {realtimeIndex + 1} / {realtimeTrials.length}
+          </span>
+        </header>
+        <div className="progress-track" aria-hidden="true">
+          <span
+            style={{
+              width: `${((realtimeIndex + 1) / realtimeTrials.length) * 100}%`,
+            }}
+          />
+        </div>
+        <section className="page-content trial-page">
+          <div className="trial-panel">
+            <p className="section-label">BAĞLAM:</p>
+            <p className="context-text">{currentRealtimeTrial.context}</p>
+            <fieldset className="realtime-fieldset">
+              <legend ref={realtimeHeadingRef} tabIndex={-1}>
+                Bu bağlamda, olayla ilgili bilgiyi olay devam ederken mi
+                alıyorsun?
+              </legend>
+              <div className="realtime-options">
+                {realtimeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={
+                      selectedRealtimeAnswer === option.value ? 'selected' : ''
+                    }
+                    aria-pressed={selectedRealtimeAnswer === option.value}
+                    onClick={() => setSelectedRealtimeAnswer(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <div className="actions">
+              <Button
+                disabled={selectedRealtimeAnswer === null}
+                onClick={recordRealtimeResponse}
               >
                 Devam et
               </Button>

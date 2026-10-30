@@ -246,9 +246,28 @@ function experimentPayload() {
     ...Array(16).fill('filler'),
     ...Array(2).fill('attention'),
   ];
+  const responses = itemTypes.map((itemType, index) =>
+    trialResponse(itemType, index),
+  );
+  const realtimeResponses = responses
+    .filter((response) => response.itemType === 'critical')
+    .map((response, index) => ({
+      trialId: response.trialId,
+      itemId: response.itemId,
+      sequence: index + 1,
+      condition: response.condition,
+      marker: response.marker,
+      evidenceSource: response.evidenceSource,
+      evidenceStrength: response.evidenceStrength,
+      intendedAcquisitionTiming: response.acquisitionTiming,
+      answer: 'yes',
+      expectedAnswer: 'yes',
+      matchesIntendedTiming: true,
+      responseTimeMs: 1200,
+    }));
   return {
     action: 'submitExperiment',
-    schemaVersion: 3,
+    schemaVersion: 4,
     studyId: 'turkish-evidentiality-v1',
     stimulusVersion: 'test-version',
     participant: {
@@ -266,6 +285,7 @@ function experimentPayload() {
       marker: 'di',
       criticalTrialCount: 16,
       fillerTrialCount: 16,
+      realtimeCheckCount: 16,
       consentedAt: '2026-09-02T10:00:00.000Z',
       completedAt: '2026-09-02T10:15:00.000Z',
       timezone: 'Europe/Istanbul',
@@ -290,7 +310,8 @@ function experimentPayload() {
       expectedMax: 7,
       correct: true,
     })),
-    responses: itemTypes.map((itemType, index) => trialResponse(itemType, index)),
+    responses,
+    realtimeResponses,
   };
 }
 
@@ -318,6 +339,7 @@ assert.equal(responseFolder.files.size, 1);
 const storedResponse = JSON.parse([...responseFolder.files.values()][0].content);
 assert.equal(storedResponse.action, undefined);
 assert.equal(storedResponse.responses.length, 34);
+assert.equal(storedResponse.realtimeResponses.length, 16);
 assert.equal(storedResponse.server.confirmationCode, firstSubmission.confirmationCode);
 
 const duplicateSubmission = post(payload);
@@ -361,9 +383,16 @@ assert.throws(
   /EMAIL_IN_RESPONSE_PAYLOAD/,
 );
 
+const realtimeItemMismatch = experimentPayload();
+realtimeItemMismatch.realtimeResponses[0].itemId = 'wrong-item';
+assert.throws(
+  () => sandbox.validateExperimentPayload_(realtimeItemMismatch, payload.studyId),
+  /REALTIME_ITEM_MISMATCH/,
+);
+
 sandbox.stopCollection();
 assert.deepEqual(post(payload), { ok: false, errorCode: 'COLLECTION_CLOSED' });
 
 console.log(
-  'Backend validation passed: private response files, duplicate protection, separate one-use raffle entries, strict schema checks, and collection controls.',
+  'Backend validation passed: private response files, duplicate protection, 16 linked real-time perception responses, separate one-use raffle entries, strict schema checks, and collection controls.',
 );

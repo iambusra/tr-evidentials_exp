@@ -11,10 +11,11 @@ A static, Turkish-language acceptability-judgment experiment for GitHub Pages.
 - 3 guided practice trials with immediate feedback
 - 2 explicit instruction-based attention checks
 - 7-point Likert scale
+- 16 post-task real-time perception checks, one for every critical context shown
 - 19 content lists per marker, producing 38 assignment lists
 - Source-specific consent and completion flows for Prolific and network recruitment
 
-Each participant completes 3 practice trials, followed by 16 critical trials, the configured number of fillers, and 2 attention checks. The practice trials explain the expected response range after each answer. The attention checks explicitly tell the participant which scale point to select and are inserted at approximately one-third and two-thirds of the randomized main sequence.
+Each participant completes 3 practice trials, followed by 16 critical trials, the configured number of fillers, and 2 attention checks. The practice trials explain the expected response range after each answer. The attention checks explicitly tell the participant which scale point to select and are inserted at approximately one-third and two-thirds of the randomized main sequence. After the main sequence, the 16 critical contexts are shown again in a separately randomized order without their target sentences. For every context, the participant reports whether they receive the information while the event is still happening by choosing Yes, No, or Unclear from the context.
 
 The marker is between participants. A participant sees only -DI critical targets or only -mIş critical targets. Each list contains exactly two critical items from each of the eight context conditions, for 16 unique critical items. Across the 19 content lists for a marker, every item appears exactly once in every context condition. The same 19-list cycle is repeated for the other marker. Critical items and fillers are mixed in a seeded random order, with runs longer than four trials of one type rejected.
 
@@ -30,12 +31,12 @@ Edit `public/experiment-config.js`:
 - Set `raffleEndpoint` to the HTTPS endpoint that stores raffle emails separately.
 - Set `prolificCompletionUrl` to the Prolific completion URL.
 - Set `proofOfHumanSiteKey` to the public Proof of Human site key. Keep the secret API key on the server.
-- `fillerCount` is set to 16, giving 34 main screens after the two attention checks are included.
+- `fillerCount` is set to 16, giving 34 main screens after the two attention checks are included. The experiment then presents 16 real-time perception checks.
 - Change `studyId` when creating a new study version.
 
 The endpoint URL is public because it runs in participants' browsers. Never put an API key, database password, service-role key, or other secret in this repository.
 
-The submitted schema is version 3. It contains recruitment source, the between-participant marker, content-list assignment, demographics, practice responses, Proof of Human session ID when available, and main-trial responses. Every main-trial row includes `responseTimeMs`, measured from display of the trial until the participant presses Continue. Attention-check rows have `itemType: "attention"`, `attentionExpected`, and `attentionPassed` fields. Submission begins automatically after the final trial. No response payload is committed to or generated inside the repository.
+The submitted schema is version 4. It contains recruitment source, the between-participant marker, content-list assignment, demographics, practice responses, Proof of Human session ID when available, main-trial responses, and `realtimeResponses`. Every main-trial and real-time perception row includes `responseTimeMs`, measured from display of the screen until the participant presses Continue. Attention-check rows have `itemType: "attention"`, `attentionExpected`, and `attentionPassed` fields. Each real-time perception row is linked to its original critical trial and records the answer, intended timing condition, expected answer, and whether the response matches the intended timing. Submission begins automatically after the final real-time perception check. No response payload is committed to or generated inside the repository.
 
 For network participants, a successful experiment submission must return a one-time `raffleToken`. The separate raffle form sends only the token and email address to `raffleEndpoint`. The email address is never added to the experiment-response payload.
 

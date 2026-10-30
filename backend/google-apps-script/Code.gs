@@ -6,11 +6,12 @@
  */
 
 var SERVICE_NAME = 'tr-evidentials-exp-receiver';
-var EXPECTED_SCHEMA_VERSION = 3;
+var EXPECTED_SCHEMA_VERSION = 4;
 var EXPECTED_CRITICAL_COUNT = 16;
 var EXPECTED_FILLER_COUNT = 16;
 var EXPECTED_ATTENTION_COUNT = 2;
 var EXPECTED_RESPONSE_COUNT = 34;
+var EXPECTED_REALTIME_CHECK_COUNT = 16;
 var EXPECTED_PRACTICE_COUNT = 3;
 var MAX_BODY_CHARACTERS = 500000;
 var DEFAULT_MAX_REQUESTS_PER_MINUTE = 120;
@@ -147,7 +148,7 @@ function saveExperimentResponse_(payload, settings) {
     storedPayload.server = {
       receivedAt: new Date().toISOString(),
       confirmationCode: confirmationCode,
-      receiverVersion: '2026-09-02-r1'
+      receiverVersion: '2026-10-30-r2'
     };
     folder.createFile(
       fileName,
@@ -208,7 +209,8 @@ function validateExperimentPayload_(payload, studyId) {
     'session',
     'demographics',
     'practiceResponses',
-    'responses'
+    'responses',
+    'realtimeResponses'
   ]);
   assert_(payload.action === 'submitExperiment', 'INVALID_ACTION');
   assert_(payload.schemaVersion === EXPECTED_SCHEMA_VERSION, 'INVALID_SCHEMA');
@@ -221,6 +223,11 @@ function validateExperimentPayload_(payload, studyId) {
   validateDemographics_(payload.demographics);
   validatePracticeResponses_(payload.practiceResponses);
   validateTrialResponses_(payload.responses, payload.session.marker);
+  validateRealtimeResponses_(
+    payload.realtimeResponses,
+    payload.responses,
+    payload.session.marker
+  );
 }
 
 function validateParticipant_(participant) {
@@ -249,6 +256,7 @@ function validateSession_(session) {
     'marker',
     'criticalTrialCount',
     'fillerTrialCount',
+    'realtimeCheckCount',
     'consentedAt',
     'completedAt',
     'timezone',
@@ -262,6 +270,10 @@ function validateSession_(session) {
   assertOneOf_(session.marker, ['di', 'mis']);
   assert_(session.criticalTrialCount === EXPECTED_CRITICAL_COUNT, 'INVALID_CRITICAL_COUNT');
   assert_(session.fillerTrialCount === EXPECTED_FILLER_COUNT, 'INVALID_FILLER_COUNT');
+  assert_(
+    session.realtimeCheckCount === EXPECTED_REALTIME_CHECK_COUNT,
+    'INVALID_REALTIME_CHECK_COUNT'
+  );
   assertIsoDate_(session.consentedAt, 'consentedAt');
   assertIsoDate_(session.completedAt, 'completedAt');
   assertString_(session.timezone, 'timezone', 1, 100);
@@ -361,6 +373,13 @@ function validateTrialResponses_(responses, sessionMarker) {
       assertOneOf_(response.evidenceSource, ['own', 'reportative']);
       assertOneOf_(response.evidenceStrength, ['strong', 'weak']);
       assertOneOf_(response.acquisitionTiming, ['realtime', 'after']);
+      var expectedFactors = factorsForCondition_(response.condition);
+      assert_(
+        response.evidenceSource === expectedFactors.evidenceSource &&
+          response.evidenceStrength === expectedFactors.evidenceStrength &&
+          response.acquisitionTiming === expectedFactors.acquisitionTiming,
+        'CONDITION_FACTOR_MISMATCH'
+      );
       assert_(response.fillerIntended === null, 'INVALID_CRITICAL_FILLER_VALUE');
       assert_(response.attentionExpected === null, 'INVALID_CRITICAL_ATTENTION_VALUE');
       assert_(response.attentionPassed === null, 'INVALID_CRITICAL_ATTENTION_PASS');
@@ -384,6 +403,132 @@ function validateTrialResponses_(responses, sessionMarker) {
   assert_(counts.critical === EXPECTED_CRITICAL_COUNT, 'INVALID_CRITICAL_COUNT');
   assert_(counts.filler === EXPECTED_FILLER_COUNT, 'INVALID_FILLER_COUNT');
   assert_(counts.attention === EXPECTED_ATTENTION_COUNT, 'INVALID_ATTENTION_COUNT');
+}
+
+function validateRealtimeResponses_(responses, trialResponses, sessionMarker) {
+  assert_(Array.isArray(responses), 'INVALID_REALTIME_RESPONSES');
+  assert_(
+    responses.length === EXPECTED_REALTIME_CHECK_COUNT,
+    'INVALID_REALTIME_RESPONSE_COUNT'
+  );
+
+  var criticalByTrialId = {};
+  trialResponses.forEach(function (response) {
+    if (response.itemType === 'critical') {
+      criticalByTrialId[response.trialId] = response;
+    }
+  });
+
+  var seenTrialIds = {};
+  responses.forEach(function (response, index) {
+    assertPlainObject_(response, 'realtimeResponse');
+    assertExactKeys_(response, [
+      'trialId',
+      'itemId',
+      'sequence',
+      'condition',
+      'marker',
+      'evidenceSource',
+      'evidenceStrength',
+      'intendedAcquisitionTiming',
+      'answer',
+      'expectedAnswer',
+      'matchesIntendedTiming',
+      'responseTimeMs'
+    ]);
+    assertString_(response.trialId, 'realtimeTrialId', 1, 200);
+    assertString_(response.itemId, 'realtimeItemId', 1, 200);
+    assert_(!seenTrialIds[response.trialId], 'DUPLICATE_REALTIME_TRIAL_ID');
+    seenTrialIds[response.trialId] = true;
+    assert_(response.sequence === index + 1, 'INVALID_REALTIME_SEQUENCE');
+    assert_(response.marker === sessionMarker, 'REALTIME_MARKER_MISMATCH');
+    assertOneOf_(response.evidenceSource, ['own', 'reportative']);
+    assertOneOf_(response.evidenceStrength, ['strong', 'weak']);
+    assertOneOf_(response.intendedAcquisitionTiming, ['realtime', 'after']);
+    assertOneOf_(response.answer, ['yes', 'no', 'unclear']);
+    assertOneOf_(response.expectedAnswer, ['yes', 'no']);
+    assert_(
+      typeof response.matchesIntendedTiming === 'boolean',
+      'INVALID_REALTIME_MATCH'
+    );
+    assertIntegerInRange_(
+      response.responseTimeMs,
+      0,
+      43200000,
+      'realtimeResponseTimeMs'
+    );
+
+    var critical = criticalByTrialId[response.trialId];
+    assert_(Boolean(critical), 'REALTIME_TRIAL_NOT_FOUND');
+    assert_(response.itemId === critical.itemId, 'REALTIME_ITEM_MISMATCH');
+    assert_(response.condition === critical.condition, 'REALTIME_CONDITION_MISMATCH');
+    assert_(response.marker === critical.marker, 'REALTIME_TRIAL_MARKER_MISMATCH');
+    assert_(
+      response.evidenceSource === critical.evidenceSource &&
+        response.evidenceStrength === critical.evidenceStrength &&
+        response.intendedAcquisitionTiming === critical.acquisitionTiming,
+      'REALTIME_FACTOR_MISMATCH'
+    );
+
+    var expectedAnswer =
+      response.intendedAcquisitionTiming === 'realtime' ? 'yes' : 'no';
+    assert_(response.expectedAnswer === expectedAnswer, 'REALTIME_EXPECTED_MISMATCH');
+    assert_(
+      response.matchesIntendedTiming === (response.answer === expectedAnswer),
+      'REALTIME_MATCH_MISMATCH'
+    );
+  });
+
+  Object.keys(criticalByTrialId).forEach(function (trialId) {
+    assert_(Boolean(seenTrialIds[trialId]), 'MISSING_REALTIME_TRIAL');
+  });
+}
+
+function factorsForCondition_(condition) {
+  var factors = {
+    own_strong_realtime: {
+      evidenceSource: 'own',
+      evidenceStrength: 'strong',
+      acquisitionTiming: 'realtime'
+    },
+    own_strong_after: {
+      evidenceSource: 'own',
+      evidenceStrength: 'strong',
+      acquisitionTiming: 'after'
+    },
+    own_weak_realtime: {
+      evidenceSource: 'own',
+      evidenceStrength: 'weak',
+      acquisitionTiming: 'realtime'
+    },
+    own_weak_after: {
+      evidenceSource: 'own',
+      evidenceStrength: 'weak',
+      acquisitionTiming: 'after'
+    },
+    reportative_strong_realtime: {
+      evidenceSource: 'reportative',
+      evidenceStrength: 'strong',
+      acquisitionTiming: 'realtime'
+    },
+    reportative_strong_after: {
+      evidenceSource: 'reportative',
+      evidenceStrength: 'strong',
+      acquisitionTiming: 'after'
+    },
+    reportative_weak_realtime: {
+      evidenceSource: 'reportative',
+      evidenceStrength: 'weak',
+      acquisitionTiming: 'realtime'
+    },
+    reportative_weak_after: {
+      evidenceSource: 'reportative',
+      evidenceStrength: 'weak',
+      acquisitionTiming: 'after'
+    }
+  };
+  assert_(Boolean(factors[condition]), 'INVALID_CONDITION');
+  return factors[condition];
 }
 
 function assertNullCriticalFields_(response) {
