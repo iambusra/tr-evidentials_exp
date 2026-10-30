@@ -1450,9 +1450,12 @@ export default function Experiment() {
       value: RealtimeAnswer;
       label: string;
     }> = [
-      { value: 'yes', label: 'Evet' },
-      { value: 'no', label: 'Hayır' },
-      { value: 'unclear', label: 'Bağlamdan anlaşılmıyor' },
+      { value: 'yes', label: 'Olay yaşanırken, anlık olarak' },
+      { value: 'no', label: 'Olay yaşandıktan sonra' },
+      {
+        value: 'unclear',
+        label: 'Bilgiyi ne zaman aldığım bağlamdan anlaşılmıyor',
+      },
     ];
 
     return (
@@ -1476,7 +1479,7 @@ export default function Experiment() {
             <p className="context-text">{currentRealtimeTrial.context}</p>
             <fieldset className="realtime-fieldset">
               <legend ref={realtimeHeadingRef} tabIndex={-1}>
-                Bu bağlamda, olayla ilgili bilgiyi olay devam ederken mi
+                Yukarıdaki bağlamda anlatılan olayla ilgili bilgiyi ne zaman
                 alıyorsun?
               </legend>
               <div className="realtime-options">
