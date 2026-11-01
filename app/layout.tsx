@@ -36,7 +36,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         <meta name="referrer" content="no-referrer" />
         <Script
-          src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/experiment-config.js`}
+          src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/experiment-config.js?v=2026-11-01-r1`}
           strategy="beforeInteractive"
         />
       </head>
