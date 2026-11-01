@@ -118,9 +118,11 @@ type ExperimentConfig = {
   completionUrl?: string;
   prolificCompletionUrl?: string;
   studyId?: string;
+  principalInvestigatorName?: string;
   researcherName?: string;
   institution?: string;
   contactEmail?: string;
+  researcherEmail?: string;
   ethicsReference?: string;
   protocolTitle?: string;
   approvalDate?: string;
@@ -525,8 +527,11 @@ function ConsentContent({
     <div className="consent-copy">
       <div className="consent-metadata">
         <p>
-          <span>Protokol sorumlusu:</span>{' '}
-          {config.researcherName || 'Robert Hawkins'}
+          <span>Baş araştırmacı (PI):</span>{' '}
+          {config.principalInvestigatorName || 'Robert Hawkins'}
+        </p>
+        <p>
+          <span>Araştırmacı:</span> {config.researcherName || 'Büşra Marşan'}
         </p>
         <p>
           <span>Protokol başlığı:</span> {protocolTitle}
@@ -651,8 +656,14 @@ function ConsentContent({
           <section className="consent-section">
             <h2>İletişim bilgileri</h2>
             <p>
-              Araştırma hakkında sorunuz, endişeniz veya şikayetiniz varsa Robert
-              Hawkins ile{' '}
+              Araştırma hakkında sorunuz, endişeniz veya şikayetiniz varsa Büşra
+              Marşan ile{' '}
+              <a
+                href={`mailto:${config.researcherEmail || 'busra@stanford.edu'}`}
+              >
+                {config.researcherEmail || 'busra@stanford.edu'}
+              </a>{' '}
+              adresinden veya Robert Hawkins ile{' '}
               <a
                 href={`mailto:${config.contactEmail || 'rdhawkins@stanford.edu'}`}
               >
