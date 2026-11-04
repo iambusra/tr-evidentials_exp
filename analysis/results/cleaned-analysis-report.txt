@@ -1,0 +1,54 @@
+FULLY CLEANED ANALYSIS
+
+Exclusion thresholds:
+- Clear filler errors: exclude at 5 or more of 16
+- Participant median main-trial RT: retain 3000 to 60000 ms
+- Individual critical-trial RT: retain 1000 to 180000 ms
+- Critical trials must match the intended timing interpretation
+
+Exclusion flow:
+                                                      stage    n
+1                                  Completed response files  256
+2                                   Native Turkish speakers  253
+3             Native speakers passing both attention checks  234
+4                             Also passing filler criterion  234
+5 Final included participants after response-time criterion  234
+6        Critical trials before timing and trial-RT filters 3744
+7   Timing-congruent critical trials before trial-RT filter 2763
+8                    Final timing-congruent critical trials 2744
+
+Participant exclusion reasons:
+# A tibble: 3 × 2
+  exclusion_reason        participants
+  <chr>                          <int>
+1 included                         234
+2 attention_check_failure           19
+3 not_native_turkish                 3
+
+Omnibus ordinal model comparisons:
+             family  lr_chisq df      p_value
+1   Marker x timing 26.940405  4 2.043808e-05
+2 Marker x strength  9.113530  4 5.832359e-02
+3   Marker x source  2.785841  4 5.942792e-01
+
+Difference-in-differences across models:
+                          model  estimate     lower     upper      p_value
+1     Ordinal random intercepts 0.4502706 0.2589990 0.6415423 3.951243e-06
+2         Ordinal random slopes 0.4525273 0.2611789 0.6438756 3.565985e-06
+3 Continuous-rating mixed model 0.6385107 0.3560391 0.9209823 1.089652e-05
+4      Leave-one-item-out range 0.6448183 0.5969733 0.6867432           NA
+
+Sanity cells:
+# A tibble: 2 × 5
+  sanity_cell        participants mean_rating median_rating percent_six_or_seven
+  <chr>                     <int>       <dbl>         <dbl>                <dbl>
+1 -DI: real-time + …           99        6.63             7                0.909
+2 -mIş: after-event…          113        6.59             7                0.867
+
+Random-slope ordinal specification:
+Ordinal mixed model with participant timing and item marker slopes
+
+Convergence codes:
+Random-intercept ordinal: 0
+Random-slope ordinal: 0
+Continuous LMM singular: FALSE

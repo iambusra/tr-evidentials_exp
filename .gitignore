@@ -164,3 +164,11 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Public aggregate analysis artifacts
+!analysis/figures/
+!analysis/figures/*.pdf
+!analysis/figures/*.png
+!analysis/results/
+!analysis/results/*.csv
+!analysis/results/*.txt

@@ -1,8 +1,7 @@
-Directory to contain experiment code (e.g., HTML/CSS/JavaScript) for this project.
+# Experiment
 
-### Checklist for starting data collection on new web experiment
-- Complete your OSF pre-registration worksheet
-- Make sure that data is being saved correctly by drafting your analysis notebook
-- Write instructions
-- Figure out how subject payment is going to work
-- Add consent form to appear before instructions
+The deployed experiment source is maintained on the [`experiment` branch](https://github.com/iambusra/tr-evidentials_exp/tree/experiment).
+
+Live deployment: <https://busramarsan.com/tr-evidentials_exp/>
+
+Raw data and server credentials are not stored in this repository.

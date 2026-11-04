@@ -1,7 +1,24 @@
-The `data` sub-directory contains the output of experiments and model simulations, which serve as input to analyses.
+# Data availability and privacy
 
-Every study will have some 'raw' data (i.e. in the format it was in when it was exported) as well as some processed or 'clean' data.
+Raw participant files are stored privately and are not included in this repository.
 
-For most behavioral studies (< 10MB), we can keep the raw data under version control. 
+## Proposed public analysis dataset
 
-For datasets too big for GitHub (e.g. corpus analysis, fMRI), we will keep the raw data in another repository (e.g. Dropbox, Google Drive, Amazon S3).  
+The analysis script can generate a minimal trial-level dataset containing only:
+
+- `subject_id`: random study-specific label such as `S001`, with no public lookup table
+- `item_id`: critical stimulus identifier
+- `marker`: `di` or `mis`
+- `acquisition_timing`: `realtime` or `after`
+- `evidence_strength`: `strong` or `weak`
+- `evidence_source`: `own` or `reportative`
+- `rating`: acceptability judgment from 1 to 7
+- `response_time_ms`: acceptability-judgment response time
+
+The proposed public file excludes collection identifiers, Prolific identifiers, session identifiers, timestamps, completion dates, email addresses, demographics, country, gender, age, time zone, recruitment source, and free-text responses. The original-to-public subject mapping is not retained.
+
+Only final cleaned critical trials are included. Separate aggregate files report the exclusion flow and data dictionary without participant-level exclusion details.
+
+## Release gate
+
+This deidentified trial-level dataset is not committed yet. Public GitHub release requires confirmation from the PI or IRB that open distribution is consistent with the approved protocol and consent language. If open release is not approved, use an access-controlled repository instead.

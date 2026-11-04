@@ -1,28 +1,32 @@
-# Project Template
+# Turkish evidentiality experiment
 
-This is an example of how a project repo should be organized.
+This repository contains the experiment and reproducible analysis for a Turkish evidentiality acceptability-judgment study. The study tests how information-acquisition timing, evidence strength, and evidence source affect the distribution of `-DI` and `-mIş`.
 
-It contains several subdirectories that will contain standard elements of almost every project:
+## Study links
 
-- `analysis`: This subdirectory will typically contain Python or R notebooks for making visualizations and statistical analyses. `/analysis/plots/` is the path to use when saving out `.pdf`/`.png` plots, a small number of which may be then polished and formatted for figures in a publication.
-- `data`:  This subdirectory is where you put the raw and processed data from behavioral experiments and computational simulations. These data serve as input to `analysis`. *Important: Before pushing any csv files containing human behavioral data to a public code repository, triple check that these data files are properly anonymized. This means no bare Worker ID's.*
-- `experiments`: If this is a project that will involve collecting human behavioral data, this is where you want to put the code to run the experiment. If this is a project that will involve evaluation of a computational model on a task, this is also where you want to put the task code (which imports the `model`).
-- `model`: If this is a cognitive modeling project, this is where you want to put code for running the model. If this project involves training neural networks, you would put training scripts in here.
+- Live study: <https://busramarsan.com/tr-evidentials_exp/>
+- Experiment source: [`experiment` branch](https://github.com/iambusra/tr-evidentials_exp/tree/experiment)
+- Cleaned analysis: [`analysis/analyze_cleaned.R`](analysis/analyze_cleaned.R)
 
-# Project documentation 
+## Repository structure
 
-## Project Log
+- `analysis/`: cleaning rules, statistical models, aggregate results, and poster-ready figures
+- `data/`: data-sharing documentation
+- `experiments/`: notes about the deployed experiment
+- `model/`: reserved for computational modeling
 
-When we spin up a new project, the first thing we'll do to collect our thoughts is to create a [Notion project](https://www.notion.so/social-interaction-lab/010f6821fc4e4aa1b7ec07716fd6cdc1?v=028218a3e35a4c079194b04b347a4d09&pvs=4) or a Google Doc to function as a running "log" of project updates and meeting notes. 
-The point is to have a file format that is easy to share and flexible in format. 
-This Google Doc / Notion page is also where you should take notes during our meetings, and collect high-level TODO items, especially those that are not immediately actionable. 
+## Data privacy
 
-## Preregistration
+Raw response files are not stored in this public repository. They contain collection identifiers and other fields that are unnecessary for reproducibility.
 
-Once we are in the later stages of desigining a new human behavioral experiment and preparing to run our first pilot, we will write up a pre-registration and either put it under version control within the project repo OR post it to the [Open Science Framework](https://osf.io/). We subscribe to the philosophy that ["pre-registrations are a plan, not a prison."](https://www.cos.io/blog/preregistration-plan-not-prison) They help us transparently document our thinking and decision-making process both for ourselves and for others, and will help us distinguish between confirmatory and exploratory findings. We do not believe that there is a single best way to write a pre-registration, but in many cases a more detailed plan will help us to clarify our experimental logic and set up our analyses accordingly (i.e., what each hypothesis predicts, which measures and analyses we will use to evaluate each relevant hypothesis). 
+A proposed deidentified analysis dataset is documented in [`data/README.md`](data/README.md). It will not be published here until the PI or IRB confirms that public GitHub release is consistent with the approved protocol and consent language.
 
-## Manuscripts 
+## Current cleaned sample
 
-When we are preparing to write up a manuscript (or a conference paper), we will start an [Overleaf](https://www.overleaf.com/) project. 
-This is where you will want to place your LaTeX source `.tex` files for your paper and your publication-ready figures as high-resolution `.pdf` files in the `figures` directory. 
-We typically format and fine-tune our figures using Adobe Illustrator.
+The analysis snapshot dated 2026-11-04 contains:
+
+- 256 completed response files
+- 234 included native Turkish speakers who passed both attention checks and all participant-level quality rules
+- 2,744 timing-congruent critical trials after trial-level response-time filtering
+
+See [`analysis/README.md`](analysis/README.md) for exact exclusion rules and model specifications.
