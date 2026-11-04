@@ -143,6 +143,7 @@ const CONTENT_LISTS = CRITICAL_ITEMS.length / 2;
 const TOTAL_LISTS = CONTENT_LISTS * 2;
 const SCALE = [1, 2, 3, 4, 5, 6, 7];
 const STIMULUS_VERSION = '2026-10-30-r6';
+const RECRUITMENT_CLOSED = true;
 
 function isGoogleAppsScriptEndpoint(endpoint: string) {
   try {
@@ -1057,6 +1058,20 @@ export default function Experiment() {
         'E-posta adresiniz kaydedilemedi. İnternet bağlantınızı kontrol edip yeniden deneyin.',
       );
     }
+  }
+
+  if (RECRUITMENT_CLOSED) {
+    return (
+      <Page>
+        <div className="plain-panel">
+          <h1>İlginiz için teşekkür ederiz.</h1>
+          <p className="lead">
+            Yeterli sayıda katılımcıya ulaştığımız için bu deneye yeni
+            katılımcı kabul etmiyoruz.
+          </p>
+        </div>
+      </Page>
+    );
   }
 
   if (stage === 'welcome') {
