@@ -280,6 +280,56 @@ extract_predictions <- function(fit) {
 model_predictions <- extract_predictions(ordinal_fits$full)
 write.csv(model_predictions, file.path(out_dir, "model-estimated-ratings.csv"), row.names = FALSE)
 
+extract_predictions_by_source <- function(fit) {
+  z <- as.data.frame(confint(
+    emmeans(fit, ~ marker * timing * source | strength, mode = "mean.class"),
+    type = "response"
+  ))
+  z %>% transmute(
+    marker,
+    timing,
+    strength,
+    source,
+    estimate = mean.class,
+    lower = asymp.LCL,
+    upper = asymp.UCL
+  )
+}
+
+model_predictions_by_source <- extract_predictions_by_source(ordinal_fits$full)
+write.csv(
+  model_predictions_by_source,
+  file.path(out_dir, "model-estimated-ratings-by-source.csv"),
+  row.names = FALSE
+)
+
+marker_cell_emmeans <- emmeans(
+  ordinal_fits$full,
+  ~ marker | timing * strength * source,
+  mode = "mean.class"
+)
+condition_marker_contrasts <- as.data.frame(summary(
+  contrast(marker_cell_emmeans, method = "pairwise", adjust = "none"),
+  infer = c(TRUE, TRUE)
+)) %>%
+  transmute(
+    timing,
+    strength,
+    source,
+    contrast,
+    estimate,
+    SE,
+    lower = asymp.LCL,
+    upper = asymp.UCL,
+    z_ratio = z.ratio,
+    p_value = p.value
+  )
+write.csv(
+  condition_marker_contrasts,
+  file.path(out_dir, "condition-specific-marker-contrasts.csv"),
+  row.names = FALSE
+)
+
 extract_did <- function(fit, ordinal = TRUE) {
   emm <- if (ordinal) {
     emmeans(fit, ~ marker * timing | strength, mode = "mean.class")
@@ -587,6 +637,98 @@ p4 <- ggplot(robustness_plot, aes(x = estimate, y = model)) +
   theme(panel.grid.major.y = element_blank(), legend.position = "none")
 save_plot(p4, "figure-4-robustness-models", 10.5, 6.0)
 
+source_prediction_plot <- model_predictions_by_source %>%
+  filter(strength == "strong") %>%
+  mutate(
+    marker_label = factor(marker, levels = c("di", "mis"), labels = c("-DI", "-mIş")),
+    timing_num = ifelse(timing == "realtime", 1, 2),
+    x_plot = timing_num + ifelse(marker == "di", -0.025, 0.025),
+    x_label = x_plot + ifelse(marker == "di", -0.035, 0.035),
+    label_hjust = ifelse(marker == "di", 1, 0),
+    label_y = estimate + ifelse(marker == "di", 0.25, -0.29),
+    source_label = factor(
+      source,
+      levels = c("own", "reportative"),
+      labels = c("Personal perception", "Hearsay")
+    )
+  )
+
+p5 <- ggplot(
+  source_prediction_plot,
+  aes(x = x_plot, y = estimate, colour = marker_label, group = marker_label, linetype = marker_label)
+) +
+  geom_line(linewidth = 1.5) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.045, linewidth = 0.8, linetype = "solid") +
+  geom_point(aes(shape = marker_label, fill = marker_label), size = 4.6, stroke = 0.75, colour = "white") +
+  geom_text(
+    aes(x = x_label, y = label_y, hjust = label_hjust, label = sprintf("%.2f", estimate)),
+    show.legend = FALSE,
+    fontface = "bold",
+    size = 4.5
+  ) +
+  facet_wrap(~ source_label, nrow = 1) +
+  scale_colour_manual(values = c("-DI" = cool_grey, "-mIş" = cardinal)) +
+  scale_fill_manual(values = c("-DI" = cool_grey, "-mIş" = cardinal)) +
+  scale_shape_manual(values = c("-DI" = 21, "-mIş" = 24)) +
+  scale_linetype_manual(values = c("-DI" = "solid", "-mIş" = "22")) +
+  scale_x_continuous(
+    breaks = c(1, 2),
+    labels = c("Real-time", "After the\nevent"),
+    limits = c(0.75, 2.25),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(breaks = 1:7, limits = c(1, 7), expand = expansion(mult = c(0.01, 0.02))) +
+  guides(fill = "none", shape = "none") +
+  labs(
+    title = "The strong-evidence timing pattern is similar across sources",
+    subtitle = "Personal perception and hearsay shown separately; marker-by-source omnibus test: p = .594",
+    x = NULL,
+    y = "Expected rating (1 to 7)",
+    caption = "Cumulative-link mixed model using the fully cleaned dataset. Error bars show 95% confidence intervals."
+  ) +
+  poster_theme()
+save_plot(p5, "figure-5-strong-timing-by-source", 11.2, 6.3)
+
+marker_contrast_plot <- condition_marker_contrasts %>%
+  mutate(
+    strength_label = factor(strength, levels = c("strong", "weak"), labels = c("Strong evidence", "Weak evidence")),
+    source_label = ifelse(source == "own", "Personal", "Hearsay"),
+    timing_label = ifelse(timing == "realtime", "Real-time", "After-event"),
+    condition = factor(
+      paste(source_label, timing_label, sep = ", "),
+      levels = rev(c("Personal, Real-time", "Personal, After-event", "Hearsay, Real-time", "Hearsay, After-event"))
+    ),
+    favored_marker = ifelse(estimate >= 0, "-DI", "-mIş")
+  )
+contrast_limit <- ceiling((max(abs(c(marker_contrast_plot$lower, marker_contrast_plot$upper))) + 0.12) * 10) / 10
+
+p6 <- ggplot(marker_contrast_plot, aes(x = estimate, y = condition)) +
+  geom_vline(xintercept = 0, colour = stone, linetype = "22", linewidth = 0.9) +
+  geom_errorbarh(
+    aes(xmin = lower, xmax = upper, colour = favored_marker),
+    height = 0.13,
+    linewidth = 1.0
+  ) +
+  geom_point(aes(colour = favored_marker, shape = timing_label), size = 4.8, stroke = 0.85) +
+  facet_wrap(~ strength_label, nrow = 1) +
+  scale_colour_manual(values = c("-DI" = cool_grey, "-mIş" = cardinal)) +
+  scale_shape_manual(values = c("Real-time" = 16, "After-event" = 17)) +
+  scale_x_continuous(
+    breaks = seq(-contrast_limit, contrast_limit, 0.2),
+    limits = c(-contrast_limit, contrast_limit)
+  ) +
+  guides(colour = "none", shape = "none") +
+  labs(
+    title = "Timing reverses marker preference under strong evidence",
+    subtitle = "Negative estimates favor -mIş; positive estimates favor -DI",
+    x = "Estimated -DI minus -mIş rating (95% confidence interval)",
+    y = NULL,
+    caption = "Condition-specific contrasts from the cumulative-link mixed model using the fully cleaned dataset."
+  ) +
+  poster_theme() +
+  theme(panel.grid.major.y = element_blank())
+save_plot(p6, "figure-6-condition-specific-marker-contrast", 11.2, 6.6)
+
 report <- c(
   "FULLY CLEANED ANALYSIS",
   "",
@@ -607,6 +749,9 @@ report <- c(
   "",
   "Difference-in-differences across models:",
   capture.output(print(robustness_results)),
+  "",
+  "Condition-specific marker contrasts:",
+  capture.output(print(condition_marker_contrasts)),
   "",
   "Sanity cells:",
   capture.output(print(sanity_summary)),

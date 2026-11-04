@@ -56,4 +56,6 @@ To create a local review copy of the proposed deidentified dataset, also set `TR
 - `figures/`: poster-ready PDF and PNG figures
 - `results/`: aggregate exclusion counts, model comparisons, estimated means, robustness summaries, and a text report
 
+The poster figures include the overall timing-by-strength pattern, sanity cells, omnibus model tests, robustness analyses, a strong-evidence source decomposition, and condition-specific `-DI` versus `-mIş` contrasts.
+
 No raw or identifiable response data are committed.

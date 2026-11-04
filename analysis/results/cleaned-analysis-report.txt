@@ -38,6 +38,26 @@ Difference-in-differences across models:
 3 Continuous-rating mixed model 0.6385107 0.3560391 0.9209823 1.089652e-05
 4      Leave-one-item-out range 0.6448183 0.5969733 0.6867432           NA
 
+Condition-specific marker contrasts:
+    timing strength      source contrast    estimate         SE       lower
+1 realtime   strong         own di - mis  0.26978249 0.09384313  0.08585334
+2    after   strong         own di - mis -0.30940192 0.12936358 -0.56294989
+3 realtime     weak         own di - mis  0.03480090 0.18264330 -0.32317339
+4    after     weak         own di - mis -0.10890981 0.18766705 -0.47673048
+5 realtime   strong reportative di - mis  0.14027737 0.09998663 -0.05569283
+6    after   strong reportative di - mis -0.18107950 0.08488018 -0.34744160
+7 realtime     weak reportative di - mis  0.04526766 0.16789603 -0.28380251
+8    after     weak reportative di - mis -0.30399108 0.17875255 -0.65433965
+        upper    z_ratio     p_value
+1  0.45371164  2.8748242 0.004042525
+2 -0.05585396 -2.3917235 0.016769471
+3  0.39277519  0.1905402 0.848885815
+4  0.25891086 -0.5803353 0.561688552
+5  0.33624756  1.4029612 0.160628400
+6 -0.01471741 -2.1333544 0.032895668
+7  0.37433783  0.2696172 0.787454739
+8  0.04635748 -1.7006251 0.089013402
+
 Sanity cells:
 # A tibble: 2 × 5
   sanity_cell        participants mean_rating median_rating percent_six_or_seven
